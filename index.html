@@ -1,0 +1,3888 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title> Подписки</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root { 
+    --ios-blue: #007AFF; 
+    --ios-blue-active: #005ecb; 
+    --ios-bg: #F2F2F7; 
+    --ios-card: #FFFFFF; 
+    --ios-text: #1C1C1E; 
+    --ios-gray: #8A8A8E; 
+    --ios-light-gray: rgba(118, 118, 128, 0.12); 
+    --ios-separator: rgba(60, 60, 67, 0.15); 
+    --ios-glass: rgba(242, 242, 247, 0.75); 
+    --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.04); 
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.08); 
+    --shadow-glow: 0 8px 24px rgba(0, 122, 255, 0.25); 
+    --radius-xl: 32px; 
+    --radius-lg: 20px; 
+    --radius-md: 14px; 
+    --radius-sm: 10px; 
+    --spring: cubic-bezier(0.32, 0.72, 0, 1); 
+}
+
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif; 
+    background-color: #000; 
+    color: var(--ios-text); 
+    margin: 0; 
+    padding: 0; 
+    -webkit-font-smoothing: antialiased; 
+    overflow-x: hidden; 
+}
+
+.main-wrapper { 
+    background-color: var(--ios-bg); 
+    
+    /* 1. Оставляем минимальную высоту, чтобы серый фон не обрывался, если контента мало */
+    min-height: 100vh; 
+    min-height: 100dvh; /* Про-совет: 100dvh лучше работает на новых iOS (учитывает скрытие панелей) */
+    
+    /* 2. ВОТ ГЛАВНОЕ ИСПРАВЛЕНИЕ: вписываем отступы внутрь высоты */
+    box-sizing: border-box; 
+    
+    transition: transform 0.5s var(--spring), border-radius 0.5s var(--spring), filter 0.5s var(--spring); 
+    padding-bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom)) + 90px); 
+    position: relative; 
+    z-index: 1; 
+}
+
+
+
+body.modal-active .main-wrapper { 
+    filter: none; /* Убираем затемнение */
+    overflow: hidden; 
+    pointer-events: none; 
+}
+
+.container { 
+    padding: 10px 20px 20px 20px; 
+    max-width: 500px; 
+    margin: 0 auto; 
+}
+
+.page { 
+    animation: fadeIn 0.4s var(--spring); 
+}
+
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
+.hidden { 
+    display: none !important; 
+}
+
+/* Хедер */
+.header { 
+    display: flex; 
+    justify-content: space-between; /* Разносит заголовок влево, аватарку вправо */
+    align-items: center; 
+    padding: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top)) + 46px) 20px 16px; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    
+    /* Эффект матового стекла iOS при скролле */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgb(101 101 101);
+
+    /* Закругление нижних углов */
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+.header-title {
+    font-size: 28px; 
+    font-weight: 800; 
+    letter-spacing: -0.5px; 
+    margin: 0; 
+    color: var(--ios-text); 
+}
+
+.profile-mini { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    background: #FFFFFF; /* Сделал чисто белым, чтобы выделялся на сером хедере */
+    padding: 4px 6px 4px 14px; 
+    border-radius: 30px; 
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+}
+
+
+.profile-name { 
+    font-size: 14px; 
+    font-weight: 600; 
+}
+
+.profile-avatar { 
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+
+.page-title { 
+    font-size: 34px; 
+    font-weight: 800; 
+    letter-spacing: -1px; 
+    margin: 10px 0 24px; 
+    color: var(--ios-text); 
+}
+
+/* Витрина и Карточки */
+.grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 16px; 
+}
+
+.card-mini { 
+    background: var(--ios-card); 
+    border-radius: var(--radius-lg); 
+    padding: 10px; 
+    box-shadow: var(--shadow-sm); 
+    cursor: pointer; 
+    transition: transform 0.25s var(--spring), box-shadow 0.25s var(--spring); 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.card-mini:active { 
+    transform: scale(0.92); 
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); 
+}
+
+.card-img { 
+    width: 100%; 
+    aspect-ratio: 1 / 1; 
+    object-fit: cover; 
+    border-radius: var(--radius-md); 
+    background: var(--ios-light-gray); 
+}
+
+.card-info { 
+    padding: 12px 6px 6px 6px; 
+}
+
+.card-title-text { 
+    font-size: 16px; 
+    font-weight: 600; 
+    margin-bottom: 4px; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.card-price { 
+    font-size: 15px; 
+    font-weight: 700; 
+    color: var(--ios-blue); 
+}
+
+/* Мои подписки */
+.my-sub-card { 
+    background: var(--ios-card); 
+    border-radius: var(--radius-lg); 
+    padding: 14px; 
+    box-shadow: var(--shadow-sm); 
+    margin-bottom: 16px; 
+    display: flex; 
+    align-items: center; 
+    gap: 16px; 
+    transition: transform 0.2s var(--spring); 
+    cursor: pointer; 
+}
+
+.my-sub-card:active { 
+    transform: scale(0.96); 
+}
+
+.my-sub-card img { 
+    width: 64px; 
+    height: 64px; 
+    border-radius: var(--radius-md); 
+    object-fit: cover; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+}
+
+.my-sub-info { 
+    flex: 1; 
+    overflow: hidden; 
+}
+
+.my-sub-title { 
+    font-weight: 700; 
+    font-size: 17px; 
+    margin-bottom: 4px; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.my-sub-date { 
+    font-size: 13px; 
+    color: var(--ios-gray); 
+    font-weight: 500; 
+}
+
+/* Прогресс-бар для подписки */
+.subscription-progress {
+    margin-top: 8px;
+    height: 4px;
+    background: var(--ios-light-gray);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #FF9500, #FF2D55);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 11px;
+    color: var(--ios-gray);
+    margin-top: 4px;
+    text-align: right;
+}
+
+.btn-app-store { 
+    padding: 8px 18px; 
+    background: rgba(0, 122, 255, 0.1); 
+    color: var(--ios-blue); 
+    border-radius: 20px; 
+    font-weight: 700; 
+    font-size: 14px; 
+    border: none; 
+    cursor: pointer; 
+}
+
+/* Модалки */
+/* Модалки - ИСПРАВЛЕННАЯ ВЕРСИЯ */
+.modal-overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.5); /* Чуть темнее фон */
+    backdrop-filter: blur(4px); /* Эффект размытия для фона */
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1000; /* Увеличил z-index */
+    display: flex; 
+    align-items: flex-end; 
+    justify-content: center;
+    opacity: 0; 
+    pointer-events: none; 
+    transition: opacity 0.3s ease; /* Более плавное появление */
+    visibility: hidden; /* Добавил для надежности */
+}
+
+.modal-overlay.active { 
+    opacity: 1; 
+    pointer-events: all; 
+    visibility: visible;
+}
+
+/* Добавьте в конец стилей */
+body.modal-active {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-content { 
+    background: var(--ios-bg); 
+    width: 100%; 
+    max-width: 500px; 
+    padding: 24px; 
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0; 
+    box-sizing: border-box; 
+    transform: translateY(100%); 
+    transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); 
+    /* МЕНЯЕМ PADDING ЗДЕСЬ */
+    padding-bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom)) + 32px); 
+    position: relative; 
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.2); 
+    max-height: 90vh; 
+    height: auto; 
+    overflow-y: auto; 
+    border-top: 1px solid rgba(255,255,255,0.2); 
+}
+
+
+.modal-content.tall-content {
+    max-height: 85vh; /* Еще больше для особых случаев */
+}
+
+.modal-overlay.active .modal-content { 
+    transform: translateY(0); 
+}
+
+.modal-handle { 
+    width: 36px; 
+    height: 5px; 
+    background: rgba(0,0,0,0.15); 
+    border-radius: 3px; 
+    margin: -12px auto 24px auto; 
+    
+    /* Добавляем эти две строки для удобного хвата пальцем: */
+    box-sizing: content-box;
+    background-clip: content-box; 
+}
+.modal-close { 
+    position: absolute; 
+    top: 16px; 
+    right: 16px; 
+    width: 30px; 
+    height: 30px; 
+    background: rgba(0,0,0,0.06); 
+    border-radius: 50%; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    color: var(--ios-gray); 
+    cursor: pointer; 
+}
+
+.modal-img { 
+    width: 100%; 
+    height: 400px; 
+    border-radius: var(--radius-lg); 
+    object-fit: cover; 
+    box-shadow: var(--shadow-sm); 
+}
+
+.modal-title { 
+    font-size: 28px; 
+    font-weight: 800; 
+    margin-bottom: 8px; 
+    letter-spacing: -0.5px;
+}
+
+.modal-desc { 
+    font-size: 16px; 
+    color: var(--ios-gray); 
+    margin-bottom: 24px; 
+    line-height: 1.5; 
+    
+    /* ДОБАВЛЕНО ДЛЯ ПЕРЕНОСА СТРОК: */
+    word-wrap: break-word;      /* Переносит длинные слова */
+    overflow-wrap: break-word;  /* Современный аналог word-wrap */
+    word-break: break-word;     /* Жесткий перенос, если слово не влезает */
+    white-space: pre-wrap;      /* ВАЖНО: сохраняет абзацы (Enter), которые вы делаете в админке! */
+}
+
+/* Промокод */
+/* --- СТРОКА ПОКУПКИ И ПРОМОКОДА --- */
+.buy-action-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    align-items: center;
+}
+
+.buy-action-row button.primary {
+    flex: 1; /* Кнопка "Купить" занимает всё свободное место */
+    margin: 0; /* Убираем margin, если он был */
+}
+
+/* Кнопка иконки промокода */
+.promo-toggle-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-md);
+    background: var(--ios-light-gray);
+    border: none;
+    color: var(--ios-blue);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s var(--spring);
+    flex-shrink: 0;
+}
+
+.promo-toggle-btn:active {
+    transform: scale(0.92);
+    background: rgba(118, 118, 128, 0.2);
+}
+
+.promo-toggle-btn.active-btn {
+    background: rgba(0, 122, 255, 0.1);
+}
+
+/* Выезжающий блок промокода */
+.promo-section {
+    margin: 0; 
+    padding: 0 12px; /* Убираем вертикальный паддинг в скрытом состоянии */
+    background: var(--ios-light-gray);
+    border-radius: var(--radius-md);
+    
+    /* Магия плавной анимации */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.4s var(--spring), opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+}
+
+/* Класс, который добавляется при открытии */
+.promo-section.active {
+    margin-top: 12px;
+    padding: 12px;
+    max-height: 150px; /* С запасом для сообщения об ошибке/успехе */
+    opacity: 1;
+}
+
+/* Остальные стили инпутов промокода (оставьте как были) */
+.promo-input-group { display: flex; gap: 8px; margin-bottom: 8px; }
+.promo-input { flex: 1; padding: 12px; border: 1px solid var(--ios-separator); border-radius: var(--radius-sm); font-size: 14px; background: var(--ios-card); }
+.promo-apply-btn { padding: 12px 16px; background: var(--ios-blue); color: white; border: none; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
+.promo-message { font-size: 13px; padding: 8px; border-radius: var(--radius-sm); display: none; }
+.promo-message.success { display: block; background: rgba(52, 199, 89, 0.1); color: #34C759; }
+.promo-message.error { display: block; background: rgba(255, 59, 48, 0.1); color: #FF3B30; }
+
+
+.promo-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.promo-input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--ios-separator);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: var(--ios-card);
+}
+
+.promo-apply-btn {
+    padding: 12px 16px;
+    background: var(--ios-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.promo-message {
+    font-size: 13px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    display: none;
+}
+
+.promo-message.success {
+    display: block;
+    background: rgba(52, 199, 89, 0.1);
+    color: #34C759;
+}
+
+.promo-message.error {
+    display: block;
+    background: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+}
+
+/* Выбор периода */
+.period-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.period-btn {
+    flex: 1 1 calc(33.33% - 8px);
+    padding: 12px 8px;
+    background: var(--ios-card);
+    border: 1px solid var(--ios-separator);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.period-btn.active {
+    background: var(--ios-blue);
+    color: white;
+    border-color: var(--ios-blue);
+}
+
+.period-price {
+    font-size: 12px;
+    color: var(--ios-gray);
+    margin-top: 4px;
+}
+
+.period-btn.active .period-price {
+    color: rgba(255,255,255,0.8);
+}
+
+/* Кнопки */
+button.primary { 
+    width: 100%; 
+    background: linear-gradient(135deg, #007AFF, #0056e0); 
+    box-shadow: var(--shadow-glow); 
+    color: #ffffff; 
+    border: none; 
+    border-radius: var(--radius-md); 
+    padding: 18px; 
+    font-size: 17px; 
+    font-weight: 700; 
+    cursor: pointer; 
+    transition: transform 0.2s var(--spring), box-shadow 0.2s var(--spring); 
+}
+
+button.primary:active { 
+    transform: scale(0.96); 
+}
+
+button.primary:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Формы */
+.form-group { 
+    margin-bottom: 18px; 
+}
+
+.form-group label { 
+    display: block; 
+    font-size: 13px; 
+    color: var(--ios-gray); 
+    margin-bottom: 8px; 
+    margin-left: 4px; 
+    font-weight: 600; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+}
+
+.modern-input { 
+    width: 100%; 
+    padding: 16px; 
+    background: var(--ios-card); 
+    border: 1.5px solid transparent; 
+    border-radius: var(--radius-md); 
+    font-size: 16px; 
+    color: var(--ios-text); 
+    box-sizing: border-box; 
+    font-family: inherit; 
+    box-shadow: var(--shadow-sm); 
+    transition: all 0.3s var(--spring); 
+    outline: none; 
+    
+    /* ДОБАВИТЬ ЭТИ ДВЕ СТРОКИ: */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+
+.modern-input:focus { 
+    border-color: var(--ios-blue); 
+    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1); 
+}
+
+textarea.modern-input { 
+    resize: none; 
+    min-height: 100px; 
+}
+
+.channel-selector { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    cursor: pointer; 
+}
+
+.channel-selector .placeholder { 
+    color: #A0A0A5; 
+}
+
+.channel-list { 
+    background: var(--ios-card); 
+    border-radius: var(--radius-lg); 
+    overflow: hidden; 
+    box-shadow: var(--shadow-sm); 
+    margin-bottom: 20px; 
+}
+
+.channel-item { 
+    padding: 16px 20px; 
+    display: flex; 
+    align-items: center; 
+    gap: 14px; 
+    border-bottom: 1px solid var(--ios-separator); 
+    cursor: pointer; 
+}
+
+.channel-avatar { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    background: var(--ios-blue); 
+    color: #fff; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: bold; 
+    font-size: 18px;
+}
+
+.channel-info { 
+    flex: 1; 
+}
+
+.channel-name { 
+    font-size: 16px; 
+    font-weight: 600; 
+    color: var(--ios-text); 
+}
+
+/* Загрузка фото */
+.file-upload-wrapper { 
+    position: relative; 
+    width: 100%; 
+}
+
+.file-upload-wrapper input[type="file"] { 
+    display: none; 
+}
+
+.image-preview-area { 
+    width: 100%; 
+    height: 400px; 
+    background: rgba(0, 122, 255, 0.05); 
+    border: 2px dashed rgba(0, 122, 255, 0.3); 
+    border-radius: var(--radius-md); 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 10px; 
+    cursor: pointer; 
+    color: var(--ios-blue); 
+    font-weight: 600; 
+    overflow: hidden; 
+    position: relative; 
+}
+
+.image-preview-area.has-image { 
+    border-style: solid; 
+    border-color: transparent; 
+    box-shadow: var(--shadow-sm); 
+    background: var(--ios-card); 
+}
+
+.image-preview-area img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    z-index: 1; 
+    opacity: 0; 
+    transition: opacity 0.3s; 
+}
+
+.image-preview-area.has-image img { 
+    opacity: 1; 
+}
+
+.image-preview-area.has-image .upload-placeholder { 
+    opacity: 0; 
+}
+
+.upload-placeholder { 
+    z-index: 2; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 8px; 
+    transition: opacity 0.3s; 
+    
+    /* Добавленные строки для центрирования текста */
+    text-align: center; 
+    padding: 0 16px; 
+    box-sizing: border-box;
+}
+
+
+/* Навигация */
+.bottom-nav { 
+    position: fixed; 
+    bottom: calc(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom)) + 24px); 
+    left: 50%;
+    transform: translateX(-50%);
+    
+    /* Автоматическая ширина для эффекта сжимающегося острова */
+    width: max-content; 
+    min-width: 220px;
+    max-width: 90%;
+    
+    background: rgba(255, 255, 255, 0.65); 
+    backdrop-filter: saturate(200%) blur(40px); 
+    -webkit-backdrop-filter: saturate(200%) blur(40px); 
+    
+    /* Улучшенные границы и тени для объема */
+    border: 1px solid rgba(255, 255, 255, 0.9); 
+    border-radius: 100px;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,1);
+    
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    padding: 8px; 
+    gap: 6px;
+    z-index: 50; 
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); /* Пружинистая анимация */
+}
+
+.nav-item { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    color: #86868B; 
+    font-size: 14px; 
+    font-weight: 700; 
+    cursor: pointer; 
+    padding: 10px; 
+    border-radius: 100px;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Скрываем текст у неактивных вкладок */
+.nav-item span {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    display: inline-block;
+    white-space: nowrap;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: translateX(-10px);
+}
+
+.nav-item.active { 
+    padding: 10px 20px;
+}
+
+.nav-item.active span {
+    max-width: 120px; /* Позволяем тексту появиться */
+    opacity: 1;
+    margin-left: 8px;
+    transform: translateX(0);
+}
+
+.nav-icon { 
+    width: 26px; 
+    height: 26px; 
+    fill: #A0A0A5; 
+    /* ИСПРАВЛЕНИЕ ТУТ: Убрали 'all', теперь анимируется только размер и тень, цвет переключается моментально */
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+    flex-shrink: 0;
+}
+
+
+.nav-item.active:nth-child(1) { 
+    color: #FF2D55; 
+}
+
+.nav-item.active:nth-child(1) { background: rgba(255, 45, 85, 0.12); color: #FF2D55; }
+.nav-item.active:nth-child(1) .nav-icon { fill: url(#grad-store); transform: scale(1.1); filter: drop-shadow(0 4px 8px rgba(255, 45, 85, 0.3));}
+
+.nav-item.active:nth-child(2) { background: rgba(255, 149, 0, 0.12); color: #FF9500; }
+.nav-item.active:nth-child(2) .nav-icon { fill: url(#grad-subs); transform: scale(1.1); filter: drop-shadow(0 4px 8px rgba(255, 149, 0, 0.3));}
+
+.nav-item.active:nth-child(3) { background: rgba(52, 199, 89, 0.12); color: #34C759; }
+.nav-item.active:nth-child(3) .nav-icon { fill: url(#grad-admin); transform: scale(1.1); filter: drop-shadow(0 4px 8px rgba(52, 199, 89, 0.3));}
+
+/* Админка */
+.alert-box { 
+    background: rgba(255, 149, 0, 0.1); 
+    color: #E68A00; 
+    padding: 16px; 
+    margin-bottom: 24px; 
+    font-size: 14px; 
+    border-radius: var(--radius-md); 
+    line-height: 1.4; 
+    display: flex; 
+    gap: 12px; 
+}
+
+.admin-tabs { 
+    display: flex; 
+    background: var(--ios-light-gray); 
+    border-radius: 12px; 
+    padding: 3px; 
+    margin-bottom: 24px; 
+    position: relative; 
+}
+
+.tab-btn { 
+    flex: 1; 
+    padding: 10px 4px; 
+    border-radius: 10px; 
+    border: none; 
+    background: transparent; 
+    color: var(--ios-text); 
+    font-weight: 600; 
+    font-size: 13px; 
+    cursor: pointer; 
+    transition: all 0.3s var(--spring); 
+    position: relative; 
+    z-index: 2; 
+    text-align: center; 
+}
+
+.tab-btn.active { 
+    background: var(--ios-card); 
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08); 
+}
+
+.stat-card { 
+    background: var(--ios-card); 
+    padding: 20px; 
+    border-radius: var(--radius-lg); 
+    margin-bottom: 16px; 
+    box-shadow: var(--shadow-sm); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+.stat-card-title { 
+    color: var(--ios-gray); 
+    font-size: 16px; 
+    font-weight: 500; 
+}
+
+.stat-card-val { 
+    font-size: 26px; 
+    font-weight: 800; 
+    color: var(--ios-text); 
+}
+
+/* Графики - ИСПРАВЛЕННАЯ ВЕРСИЯ */
+.chart-container {
+    background: var(--ios-card);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+    height: 280px !important; /* Фиксированная высота */
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 250px !important; /* Фиксированная высота canvas */
+    max-height: 250px !important;
+    display: block;
+}
+
+.chart-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+/* Сетка статистики для компактности */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stats-grid .stat-card {
+    margin-bottom: 0;
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.stats-grid .stat-card .stat-card-val {
+    font-size: 22px;
+}
+
+/* Кнопка обновления */
+.update-stats-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--ios-light-gray);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--ios-text);
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s var(--spring);
+}
+
+.update-stats-btn:active {
+    transform: scale(0.98);
+    background: rgba(118, 118, 128, 0.2);
+}
+
+/* Поиск пользователей */
+.search-box {
+    margin-bottom: 16px;
+}
+
+.user-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.user-item {
+    background: var(--ios-card);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.user-item:hover {
+    background: var(--ios-light-gray);
+}
+
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-name {
+    font-weight: 600;
+}
+
+.user-sub-status {
+    font-size: 12px;
+    color: var(--ios-gray);
+}
+
+/* Промокоды в админке */
+.promo-item {
+    background: var(--ios-card);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.promo-code {
+    font-weight: 700;
+    font-size: 16px;
+    font-family: monospace;
+    background: var(--ios-light-gray);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.promo-stats {
+    font-size: 13px;
+    color: var(--ios-gray);
+}
+
+.promo-toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--ios-light-gray);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.promo-toggle.active {
+    background: var(--ios-blue);
+}
+
+.promo-toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+}
+
+.promo-toggle.active::after {
+    transform: translateX(20px);
+}
+
+/* Рассылка */
+.broadcast-preview {
+    background: var(--ios-card);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin: 16px 0;
+    border-left: 4px solid var(--ios-blue);
+}
+
+/* Список периодов для админки */
+.periods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.period-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--ios-card);
+    padding: 12px;
+    border-radius: var(--radius-md);
+}
+
+.period-days {
+    width: 100px;
+}
+
+.period-price-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--ios-separator);
+    border-radius: var(--radius-sm);
+}
+
+.remove-period {
+    color: #FF3B30;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.add-period-btn {
+    background: var(--ios-light-gray);
+    border: none;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    color: var(--ios-blue);
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+}
+
+
+.admin-menu-button:active {
+    transform: scale(0.98);
+    background: var(--ios-light-gray);
+}
+
+.admin-menu-button svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--ios-gray);
+    transition: transform 0.3s var(--spring);
+}
+
+.admin-menu-button.active svg {
+    transform: rotate(180deg);
+}
+
+/* ===== ВЫПАДАЮЩЕЕ МЕНЮ АДМИНКИ ===== */
+
+/* Кнопка открытия меню - КРАСИВАЯ */
+.admin-menu-button {
+    background: var(--ios-card);
+    border: none;
+    border-radius: 16px;
+    padding: 18px 22px;
+    margin-bottom: 12px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ios-text);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 0 0 0.5px rgba(0, 0, 0, 0.02) inset;
+    cursor: pointer;
+    transition: all 0.2s var(--spring);
+    position: relative;
+    z-index: 9;
+    letter-spacing: -0.2px;
+}
+
+.admin-menu-button:hover {
+    background: #f8f8fc;
+}
+
+.admin-menu-button:active {
+    transform: scale(0.98);
+    background: var(--ios-light-gray);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.admin-menu-button svg {
+    width: 22px;
+    height: 22px;
+    fill: var(--ios-gray);
+    transition: transform 0.3s var(--spring);
+}
+
+.admin-menu-button.active svg {
+    transform: rotate(180deg);
+}
+
+/* Текст на кнопке */
+#selectedSectionText {
+    background: linear-gradient(135deg, var(--ios-blue) 0%, #0055cc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-weight: 700;
+}
+
+/* Выпадающий список - С КРАСИВЫМИ СТИЛЯМИ */
+.admin-dropdown {
+    background: var(--ios-card);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.4s var(--spring), opacity 0.3s var(--spring), margin 0.3s var(--spring);
+    transform-origin: top;
+    transform: scaleY(0.95);
+    border: 0.5px solid var(--ios-separator);
+}
+
+.admin-dropdown.active {
+    max-height: 616px;
+    opacity: 1;
+    margin-bottom: 24px;
+    transform: scaleY(1);
+}
+
+.admin-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--ios-separator);
+    cursor: pointer;
+    transition: all 0.2s var(--spring);
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.admin-dropdown-item:active {
+    background: var(--ios-light-gray);
+}
+
+.admin-dropdown-item:active .admin-dropdown-title {
+    transform: translateX(4px);
+}
+
+.admin-dropdown-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.1) 0%, rgba(0, 122, 255, 0.05) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ios-blue);
+    font-size: 20px;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
+    transition: all 0.2s var(--spring);
+}
+
+.admin-dropdown-item:active .admin-dropdown-icon {
+    transform: scale(0.9);
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(0, 122, 255, 0.1) 100%);
+}
+
+.admin-dropdown-title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ios-text);
+    transition: transform 0.2s var(--spring);
+    letter-spacing: -0.2px;
+}
+
+.admin-dropdown-arrow {
+    color: var(--ios-gray);
+    font-size: 20px;
+    font-weight: 300;
+    opacity: 0.7;
+    transition: transform 0.2s var(--spring);
+}
+
+.admin-dropdown-item:active .admin-dropdown-arrow {
+    transform: translateX(4px);
+    opacity: 1;
+}
+
+/* Активный пункт в выпадающем списке */
+.admin-dropdown-item.active {
+    background: linear-gradient(90deg, rgba(0, 122, 255, 0.05) 0%, transparent 100%);
+    position: relative;
+}
+
+.admin-dropdown-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--ios-blue) 0%, #0055cc 100%);
+    border-radius: 0 4px 4px 0;
+}
+
+.admin-dropdown-item.active .admin-dropdown-title {
+    color: var(--ios-blue);
+    font-weight: 700;
+}
+
+.admin-dropdown-item.active .admin-dropdown-icon {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.2) 0%, rgba(0, 122, 255, 0.1) 100%);
+    color: var(--ios-blue);
+    box-shadow: 0 2px 12px rgba(0, 122, 255, 0.2);
+}
+
+/* Скрыть бейдж текущего раздела */
+.current-section-badge {
+    display: none !important;
+}
+
+/* Анимация появления пунктов меню */
+.admin-dropdown.active .admin-dropdown-item {
+    animation: slideIn 0.3s var(--spring) forwards;
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.admin-dropdown.active .admin-dropdown-item:nth-child(1) { animation-delay: 0.05s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(2) { animation-delay: 0.1s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(3) { animation-delay: 0.15s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(4) { animation-delay: 0.2s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(5) { animation-delay: 0.25s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(6) { animation-delay: 0.3s; }
+.admin-dropdown.active .admin-dropdown-item:nth-child(7) { animation-delay: 0.35s; }
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Скрыть старые табы */
+.admin-tabs {
+    display: none;
+}
+
+/* Стили для статистики по каналам */
+.channel-stat-item {
+    background: var(--ios-card);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+}
+.channel-stat-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--ios-text);
+}
+.channel-stat-details {
+    font-size: 13px;
+    color: var(--ios-gray);
+    margin-top: 4px;
+}
+.channel-stat-income {
+    font-size: 18px;
+    font-weight: 700;
+    color: #34C759; /* Зеленый цвет для дохода */
+}
+
+/* Стили для бейджей статуса пользователя */
+.user-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 6px;
+}
+.user-status-badge.active {
+    background: rgba(52, 199, 89, 0.15);
+    color: #34C759;
+}
+.user-status-badge.inactive {
+    background: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+}
+.user-title-wrap {
+    display: flex;
+    flex-direction: column;
+}
+/* --- ГЛОБАЛЬНАЯ БЛОКИРОВКА (БЛЮР) --- */
+.global-lock-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 99999; /* Поверх всего вообще */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    visibility: hidden;
+}
+
+.global-lock-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+    visibility: visible;
+}
+
+.lock-card {
+    background: var(--ios-card);
+    padding: 30px 24px;
+    border-radius: var(--radius-xl);
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    width: 85%;
+    max-width: 320px;
+    transform: scale(0.9);
+    transition: transform 0.4s var(--spring);
+}
+
+.global-lock-overlay.active .lock-card {
+    transform: scale(1);
+}
+
+.lock-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.lock-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ios-text);
+    margin: 0 0 8px 0;
+}
+
+.lock-desc {
+    font-size: 15px;
+    color: var(--ios-gray);
+    line-height: 1.4;
+    margin-bottom: 24px;
+}
+
+.admin-sub-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #34C759;
+    margin-top: 2px;
+    display: none; /* Скрыто по умолчанию */
+}
+.admin-sub-badge.expired {
+    color: #FF3B30;
+}
+
+/* --- ЛОАДЕР ОЖИДАНИЯ ОПЛАТЫ --- */
+.loader-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(0, 122, 255, 0.15);
+    border-top: 4px solid var(--ios-blue);
+    border-radius: 50%;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    margin: 0 auto 16px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#payment-waiting-modal {
+    z-index: 999999 !important; /* Исправлено: теперь поверх всего, включая global-lock */
+    align-items: center; 
+}
+
+
+.payment-waiting-card {
+    background: var(--ios-card);
+    padding: 32px 24px;
+    border-radius: var(--radius-xl);
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    width: 85%;
+    max-width: 320px;
+    transform: scale(0.9); /* Убрали translateY, чтобы не смещалось */
+    transition: transform 0.4s var(--spring);
+}
+
+#payment-waiting-modal.active .payment-waiting-card {
+    transform: scale(1);
+}
+
+/* Успешная анимация (галочка) */
+.success-checkmark {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #34C759;
+    color: white;
+    font-size: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px auto;
+    animation: scaleIn 0.5s var(--spring);
+}
+
+@keyframes scaleIn {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
+}
+/* --- БАННЕР ПОДПИСКИ АДМИНА --- */
+.admin-sub-banner {
+    background: linear-gradient(135deg, #1C1C1E 0%, #2C2C2E 100%);
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    color: white;
+}
+.admin-sub-banner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.admin-sub-banner-title {
+    font-weight: 700;
+    font-size: 16px;
+}
+.admin-sub-banner-date {
+    font-size: 13px;
+    color: #A0A0A5;
+}
+.admin-sub-banner-btn {
+    background: linear-gradient(135deg, #007AFF, #0056e0);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow-glow);
+    transition: transform 0.2s;
+}
+.admin-sub-banner-btn:active {
+    transform: scale(0.92);
+}
+
+
+</style>
+</head>
+<body>
+
+<svg style="width:0;height:0;position:absolute;" aria-hidden="true">
+    <defs>
+        <linearGradient id="grad-store" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF2D55" />
+            <stop offset="100%" stop-color="#FF375F" />
+        </linearGradient>
+        <linearGradient id="grad-subs" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF9500" />
+            <stop offset="100%" stop-color="#FFCC00" />
+        </linearGradient>
+        <linearGradient id="grad-admin" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#34C759" />
+            <stop offset="100%" stop-color="#30D158" />
+        </linearGradient>
+    </defs>
+</svg>
+
+<!-- ГЛОБАЛЬНАЯ БЛОКИРОВКА -->
+<div id="global-lock" class="global-lock-overlay">
+    <div class="lock-card">
+        <div class="lock-icon" id="lock-icon">🔒</div>
+        <h2 class="lock-title" id="lock-title">Доступ закрыт</h2>
+        <div class="lock-desc" id="lock-desc">На данный момент ведутся технические работы. Приложение временно недоступно.</div>
+        
+        <!-- Кнопка только для админа -->
+        <button id="btn-buy-admin-sub" class="primary hidden" onclick="buySystemSubscription()">
+            Оплатить бота (1 мес)
+        </button>
+    </div>
+</div>
+
+
+<div class="main-wrapper">
+    <!-- ХЕДЕР -->
+    <!-- ХЕДЕР -->
+    <div class="header">
+        <!-- Добавили заголовок сюда -->
+        <h1 id="main-header-title" class="header-title">Тарифы</h1>
+        
+        <div class="profile-mini">
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <div id="user-name" class="profile-name">User</div>
+                <div id="admin-sub-status" class="admin-sub-badge">...</div>
+            </div>
+            <img id="user-avatar" class="profile-avatar" src="https://ui-avatars.com/api/?name=User&background=E5E5EA&color=000">
+        </div>
+    </div>
+    <div class="container">
+        <!-- 1. ВИТРИНА -->
+        <div id="page-store" class="page">
+            <div class="grid" id="store-grid"></div>
+        </div>
+        <!-- 2. МОИ ПОДПИСКИ -->
+        <div id="page-mysubs" class="page hidden">
+            <div id="mysubs-list"></div>
+        </div>
+        <!-- 3. АДМИНКА -->
+        <div id="page-admin" class="page hidden">
+            
+            <!-- НОВЫЙ БЛОК: Статус подписки бота -->
+            <div class="admin-sub-banner">
+                <div class="admin-sub-banner-info">
+                    <div class="admin-sub-banner-title">Работа бота оплачена</div>
+                    <div class="admin-sub-banner-date" id="admin-banner-date">До: ...</div>
+                </div>
+                <button class="admin-sub-banner-btn" onclick="buySystemSubscription()">Продлить</button>
+            </div>
+            
+            <!-- Кнопка открытия выпадающего меню -->
+            <button class="admin-menu-button" onclick="toggleAdminDropdown()" id="adminMenuButton">
+                <span id="selectedSectionText">📋 Выберите раздел</span>
+                <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
+        
+
+            <!-- Выпадающий список разделов -->
+            <div class="admin-dropdown" id="adminDropdown">
+                <div class="admin-dropdown-item" onclick="selectAdminSection('create', this)">
+                    <div class="admin-dropdown-icon">📝</div>
+                    <div class="admin-dropdown-title">Создать тариф</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('manage', this)">
+                    <div class="admin-dropdown-icon">📋</div>
+                    <div class="admin-dropdown-title">Мои тарифы</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('payment', this)">
+                    <div class="admin-dropdown-icon">💳</div>
+                    <div class="admin-dropdown-title">Касса (Оплата)</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+
+
+                <div class="admin-dropdown-item" onclick="selectAdminSection('stats', this)">
+                    <div class="admin-dropdown-icon">📊</div>
+                    <div class="admin-dropdown-title">Статистика</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('promo', this)">
+                    <div class="admin-dropdown-icon">🏷️</div>
+                    <div class="admin-dropdown-title">Промокоды</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('broadcast', this)">
+                    <div class="admin-dropdown-icon">📢</div>
+                    <div class="admin-dropdown-title">Рассылка</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('users', this)">
+                    <div class="admin-dropdown-icon">👥</div>
+                    <div class="admin-dropdown-title">Пользователи</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+                
+                <div class="admin-dropdown-item" onclick="selectAdminSection('welcome', this)">
+                    <div class="admin-dropdown-icon">👋</div>
+                    <div class="admin-dropdown-title">Приветствие</div>
+                    <div class="admin-dropdown-arrow">›</div>
+                </div>
+            </div>
+        
+            <!-- Бейдж текущего раздела (для наглядности) -->
+            <div class="current-section-badge" id="currentSectionBadge"></div>
+    
+            <div id="admin-payment" class="hidden">
+                <div class="alert-box">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <div>Здесь введите данные вашей кассы Platega. Все оплаты за ваши тарифы будут идти на этот аккаунт.</div>
+                </div>
+
+                <!-- НОВАЯ КНОПКА СВЯЗИ С МЕНЕДЖЕРОМ -->
+                <button class="primary" onclick="contactPlategaManager()" style="background: var(--ios-light-gray); color: var(--ios-blue); box-shadow: none; margin-bottom: 20px;">
+                    💬 Написать менеджеру для подключения
+                </button>
+                <!-- =============================== -->
+
+                <div class="form-group">
+                    <label>MERCHANT_ID</label>
+                    <input type="text" id="pay-merchant-id" class="modern-input" placeholder="a8f3d2b1-7c94-4e6a-b2d9-5f1c8a3e7d40">
+                </div>
+                <div class="form-group">
+                    <label>API_SECRET</label>
+                    <input type="text" id="pay-api-secret" class="modern-input" placeholder="x7KdP3mQaR9vT2LwYcH8sJfU...">
+                </div>
+                <button class="primary" onclick="savePaymentSettings()">Сохранить настройки кассы</button>
+            </div>
+
+            <!-- Контейнеры для разных разделов -->
+        <div id="admin-welcome" class="hidden">
+            <div class="alert-box">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <div>Настройте приветственное сообщение для команды /start</div>
+            </div>
+
+            <!-- НОВАЯ КНОПКА -->
+            <button class="primary" onclick="setupWelcomeViaBot()" style="background: var(--ios-light-gray); color: var(--ios-blue); box-shadow: none; margin-bottom: 16px;">
+                ✨ Настроить через бота (с кастомными эмодзи)
+            </button>
+            <div style="text-align: center; color: var(--ios-gray); font-size: 13px; margin-bottom: 16px;">ИЛИ ОБЫЧНЫЙ ТЕКСТ (без премиум эмодзи):</div>
+
+            <div class="form-group">
+                <label>Текст сообщения</label>
+                <textarea id="welcome-text" class="modern-input" placeholder="Введите текст приветствия...">Добро пожаловать в магазин подписок! Открой приложение 👇</textarea>
+            </div>
+            <!-- ... дальше идет остальной код ... -->
+
+    
+            <div class="form-group" id="welcome-media-group">
+                <label>Медиафайл (необязательно)</label>
+                <div style="font-size: 12px; color: var(--ios-gray); margin-bottom: 8px;">Если не хотите, можете не прикреплять медиафайл.</div>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="welcome-media" accept="image/*,video/*,image/gif">
+                    <div class="image-preview-area" id="welcome-preview-area" onclick="document.getElementById('welcome-media').click()">
+                        <div class="upload-placeholder">
+                            <span id="welcome-label-text">Нажмите, чтобы загрузить медиа</span>
+                        </div>
+                        <!-- Убрали тег img, чтобы не было превью -->
+                    </div>
+                </div>
+            </div>
+    
+            <button class="primary" onclick="saveWelcomeSettings()">Сохранить приветствие</button>
+        </div>
+        
+
+        
+            <!-- АДМИН: СОЗДАТЬ ТАРИФ -->
+            <div id="admin-create">
+                <div class="alert-box">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <div><b>Важно:</b> Добавьте бота в канал как Администратора! В настройках пригласительной ссылки включите "Заявки на вступление".</div>
+                </div>
+        
+                <div class="form-group">
+                    <label>Целевой канал</label>
+                    <div class="modern-input channel-selector" onclick="openChannelModal()">
+                        <span id="selected-channel-text" class="placeholder">Выберите канал...</span>
+                        <svg fill="var(--ios-gray)" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                    </div>
+                    <input type="hidden" id="channelId" value="">
+                </div>
+        
+                <div class="form-group">
+                    <label>Название тарифа</label>
+                    <input type="text" id="title" class="modern-input" placeholder="Например: Premium ">
+                </div>
+        
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="desc" class="modern-input" placeholder="Что включено в тариф?"></textarea>
+                </div>
+        
+                <div class="form-group">
+                    <label>Приватная ссылка на канал</label>
+                    <input type="url" id="inviteLink" class="modern-input" placeholder="https://t.me/...">
+                </div>
+        
+                <div class="form-group">
+                    <label>Периоды и цены</label>
+                    <div id="periods-container" class="periods-list"></div>
+                </div>
+        
+                <div class="form-group">
+                    <label>Обложка тарифа</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="photo" accept="image/*">
+                        <div class="image-preview-area" id="photo-preview-area" onclick="document.getElementById('photo').click()">
+                            <div class="upload-placeholder">
+                                <span id="photo-label-text">Загрузить картинку</span>
+                            </div>
+                            <img id="photo-preview-img" src="">
+                        </div>
+                    </div>
+                </div>
+        
+                <button class="primary" onclick="createSubscription()" style="margin-top: 8px; margin-bottom: 20px;">Опубликовать тариф</button>
+            </div>
+        
+            <!-- АДМИН: УПРАВЛЕНИЕ ТАРИФАМИ -->
+            <div id="admin-manage" class="hidden">
+                <div id="manage-list"></div>
+                <div id="edit-form-container" class="hidden">
+                    <button class="btn-app-store" onclick="closeEditForm()" style="margin-bottom: 20px;">⬅ Назад к списку</button>
+                    <input type="hidden" id="edit-subId">
+                    
+                    <div class="form-group">
+                        <label>Название тарифа</label>
+                        <input type="text" id="edit-title" class="modern-input">
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="edit-desc" class="modern-input"></textarea>
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Приватная ссылка</label>
+                        <input type="url" id="edit-inviteLink" class="modern-input">
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Периоды и цены</label>
+                        <div id="edit-periods-container" class="periods-list"></div>
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Новая обложка (оставьте пустым, чтобы не менять)</label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="edit-photo" accept="image/*">
+                            <div class="image-preview-area" id="edit-photo-preview-area" onclick="document.getElementById('edit-photo').click()">
+                                <div class="upload-placeholder">
+                                    <span id="edit-photo-label-text">Изменить картинку</span>
+                                </div>
+                                <img id="edit-photo-preview-img" src="">
+                            </div>
+                        </div>
+                    </div>
+        
+                    <button class="primary" onclick="updateSubscription()" style="margin-bottom: 20px;">Сохранить изменения</button>
+                    <button class="primary" onclick="deleteSubscription()" style="background: #FF3B30; margin-bottom: 10px; box-shadow: 0 8px 24px rgba(255, 59, 48, 0.25);">Удалить тариф</button>
+                </div>
+            </div>
+        
+            <!-- АДМИН: СТАТИСТИКА (Только факты) -->
+            <div id="admin-stats" class="hidden">
+                <h3 style="margin-top: 0; margin-bottom: 16px;">Доход</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-title">За сегодня</div>
+                        <div class="stat-card-val" id="stat-today">0 ₽</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-title">За 7 дней</div>
+                        <div class="stat-card-val" id="stat-7days">0 ₽</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-title">За 30 дней</div>
+                        <div class="stat-card-val" id="stat-30days">0 ₽</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-title">За всё время</div>
+                        <div class="stat-card-val" id="stat-all-time">0 ₽</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 24px; margin-bottom: 16px;">Общая статистика</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-title">Всего продаж</div>
+                        <div class="stat-card-val" id="stat-total-purchases">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-title">Пользователей</div>
+                        <div class="stat-card-val" id="stat-total-users">0</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 24px; margin-bottom: 16px;">Доход по каналам</h3>
+                <div id="channels-stats-list"></div>
+
+                <button class="update-stats-btn" onclick="loadDetailedStats()" style="margin-top: 20px;">
+                    🔄 Обновить данные
+                </button>
+            </div>
+
+        
+            <!-- АДМИН: ПРОМОКОДЫ -->
+            <div id="admin-promo" class="hidden">
+                <div class="form-group">
+                    <label>Код промокода</label>
+                    <input type="text" id="promo-code" class="modern-input" placeholder="SUMMER2024">
+                </div>
+        
+                <div class="form-group">
+                    <label>Тип скидки</label>
+                    <select id="promo-type" class="modern-input">
+                        <option value="fixed">Фиксированная (руб)</option>
+                        <option value="percent">Процентная (%)</option>
+                    </select>
+                </div>
+        
+                <div class="form-group">
+                    <label>Размер скидки</label>
+                    <input type="number" id="promo-discount" class="modern-input" placeholder="100">
+                </div>
+        
+                <div class="form-group">
+                    <label>Срок действия (оставьте пустым для бессрочного)</label>
+                    <input type="date" id="promo-expires" class="modern-input">
+                </div>
+        
+                <div class="form-group">
+                    <label>Максимум использований (0 = без лимита)</label>
+                    <input type="number" id="promo-max-uses" class="modern-input" value="0">
+                </div>
+        
+                <button class="primary" onclick="createPromocode()" style="margin-bottom: 20px;">Создать промокод</button>
+        
+                <h3 style="margin: 20px 0 10px;">Существующие промокоды</h3>
+                <div id="promocodes-list"></div>
+            </div>
+        
+            <!-- АДМИН: РАССЫЛКА -->
+            <!-- АДМИН: РАССЫЛКА -->
+            <div id="admin-broadcast" class="hidden">
+                <div class="alert-box">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <div>Создайте рассылку с премиум-эмодзи прямо в боте!</div>
+                </div>
+                
+                <!-- НОВАЯ КНОПКА -->
+                <button class="primary" onclick="setupBroadcastViaBot()" style="background: var(--ios-light-gray); color: var(--ios-blue); box-shadow: none; margin-bottom: 16px;">
+                    ✨ Настроить через бота (с кастомными эмодзи)
+                </button>
+                <div style="text-align: center; color: var(--ios-gray); font-size: 13px; margin-bottom: 16px;">ИЛИ ОБЫЧНЫЙ ТЕКСТ (без премиум эмодзи):</div>
+
+                <div class="form-group">
+                    <label>Текст сообщения</label>
+                    <textarea id="broadcast-text" class="modern-input" placeholder="Введите текст рассылки..."></textarea>
+                </div>
+        
+                <div class="form-group" id="broadcast-media-group">
+                    <label>Медиафайл (необязательно)</label>
+                    <div style="font-size: 12px; color: var(--ios-gray); margin-bottom: 8px;">Если не хотите, можете не прикреплять медиафайл.</div>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="broadcast-media" accept="image/*,video/*,image/gif">
+                        <div class="image-preview-area" id="broadcast-preview-area" onclick="document.getElementById('broadcast-media').click()">
+                            <div class="upload-placeholder">
+                                <span id="broadcast-label-text">Нажмите, чтобы загрузить медиа</span>
+                            </div>
+                            <!-- Убрали тег img, чтобы не было превью -->
+                        </div>
+                    </div>
+                </div>
+        
+                <button class="primary" onclick="sendBroadcast()">Отправить рассылку</button>
+            </div>
+
+        
+            <!-- АДМИН: УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ -->
+            <div id="admin-users" class="hidden">
+                <div class="search-box">
+                    <input type="text" id="user-search" class="modern-input" placeholder="Поиск по ID..." oninput="searchUsers()">
+                </div>
+        
+                <div id="users-list" class="user-list"></div>
+                
+                <!-- Модалка управления подпиской пользователя -->
+                <!-- Модалка управления подпиской пользователя -->
+                <div id="user-edit-modal" class="modal-overlay">
+                    <div class="modal-content">
+                        <div class="modal-handle"></div>
+                        
+                        <h3 id="user-edit-title" style="margin-bottom: 5px;">Управление пользователем</h3>
+                        <p id="user-edit-id" style="color: var(--ios-gray); font-size: 14px; margin-top: 0; margin-bottom: 20px;"></p>
+                        
+                        <input type="hidden" id="edit-user-id">
+                        
+                        <div class="form-group">
+                            <label>Выберите подписку пользователя</label>
+                            <select id="user-sub-selector" class="modern-input"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Продлить на дней</label>
+                            <input type="number" id="extend-days" class="modern-input" value="30">
+                        </div>
+                        
+                        <button class="primary" id="btn-extend-user" onclick="extendUserSubscription()" style="margin-bottom: 10px;">Продлить подписку</button>
+                        <button class="primary" id="btn-cancel-user" onclick="cancelUserSubscription()" style="background: #FF3B30; margin-bottom: 10px;">Отключить подписку</button>
+                        <button class="primary" onclick="closeUserEditModal()" style="background: var(--ios-light-gray); color: var(--ios-text); box-shadow: none;">Закрыть</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    <!-- НИЖНЯЯ НАВИГАЦИЯ -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="navTo('store', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 6h-2c0-2.76-2.24-5-5-5S7 3.24 7 6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7-3c1.66 0 3 1.34 3 3H9c0-1.66 1.34-3 3-3z"/></svg>
+            <span>Витрина</span>
+        </div>
+        <div class="nav-item" onclick="navTo('mysubs', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <span>Подписки</span>
+        </div>
+        <div class="nav-item hidden" id="nav-admin" onclick="navTo('admin', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            <span>Управление</span>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛКА ТОВАРА -->
+<div class="modal-overlay" id="product-modal">
+    <div class="modal-content">
+        <div class="modal-handle"></div>
+        <img id="modal-img" class="modal-img" src="">
+        
+        <!-- ИСПРАВЛЕННЫЙ ЗАГОЛОВОК: Название + срок • цена -->
+        <div id="modal-title" class="modal-title"></div>
+        <div id="modal-desc" class="modal-desc">Описание</div>
+        
+        <div style="margin: 16px 0 8px; font-weight: 600; font-size: 14px; color: var(--ios-gray); text-align: center;"></div>
+        
+        <!-- Ряд с кнопками оплаты (без цены) и промокодом -->
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+            <!-- Кнопка СБП (без цены) -->
+            <button id="modal-buy-sbp-btn" class="primary" onclick="processBuy(2)" style="flex: 1; margin: 0; padding: 16px;">
+                💳 СБП
+            </button>
+            
+            <!-- Кнопка Crypto (без цены) -->
+            <button id="modal-buy-crypto-btn" class="primary" onclick="processBuy(13)" style="flex: 1; margin: 0; background: #8A2BE2; box-shadow: 0 8px 24px rgba(138, 43, 226, 0.25);">
+                💎 Crypto
+            </button>
+            
+            <!-- Кнопка промокода -->
+            <button class="promo-toggle-btn" onclick="togglePromoSection()" style="width: 56px; height: 56px; flex-shrink: 0;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
+            </button>
+        </div>
+
+        <!-- Промокод (Скрыт по умолчанию, выезжает снизу) -->
+        <div class="promo-section" id="promo-section-container">
+            <div class="promo-input-group">
+                <input type="text" id="promo-input" class="promo-input" placeholder="Введите промокод">
+                <button class="promo-apply-btn" onclick="applyPromocode()">Применить</button>
+            </div>
+            <div id="promo-message" class="promo-message"></div>
+        </div>
+        
+    </div>
+</div>
+
+
+<!-- МОДАЛКА ВЫБОРА КАНАЛА -->
+<div class="modal-overlay" id="channel-modal">
+    <div class="modal-content" style="background: var(--ios-bg);">
+        <div class="modal-handle"></div>
+        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 22px; text-align: center;">Выберите канал</h3>
+        <div class="channel-list" id="channel-list-container"></div>
+        <button class="primary" onclick="closeModal('channel-modal')" style="background: var(--ios-light-gray); color: var(--ios-text); box-shadow: none;">Отмена</button>
+    </div>
+</div>
+
+<!-- МОДАЛКА ОЖИДАНИЯ ОПЛАТЫ -->
+<div class="modal-overlay" id="payment-waiting-modal">
+    <div class="payment-waiting-card">
+        <div class="loader-spinner"></div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 22px; font-weight: 800;">Ожидание оплаты</h3>
+        <p style="color: var(--ios-gray); font-size: 15px; line-height: 1.4; margin-bottom: 24px;">
+            Мы перенаправили вас на кассу. После успешной оплаты бот автоматически выдаст вам доступ и пришлет уведомление.
+        </p>
+        
+        <button class="primary" onclick="reopenPaymentLink()" style="margin-bottom: 12px; font-size: 16px; padding: 16px;">
+            🔗 Оплатить
+        </button>
+        <button class="primary" onclick="closePaymentWaiting()" style="background: var(--ios-light-gray); color: var(--ios-text); font-size: 16px; padding: 16px; box-shadow: none;">
+            Отменить
+        </button>
+    </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+
+// === ПРОВЕРКА НА ЗАПУСК ВНЕ TELEGRAM ===
+if (tg.platform === 'unknown' || !tg.initData) {
+    // 1. Полностью стираем весь HTML внутри <body>
+    document.body.innerHTML = '';
+    
+    // 2. Вставляем дизайн заглушки прямо через JS (стили встроены)
+    document.body.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #F2F2F7; display: flex; align-items: center; justify-content: center; z-index: 9999999; padding: 20px; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;">
+            <div style="background: #FFFFFF; padding: 32px 24px; border-radius: 32px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.1); width: 100%; max-width: 320px;">
+                <div style="font-size: 56px; margin-bottom: 16px;">🤖</div>
+                <div style="font-size: 15px; color: #1c1c1e; font-weight: 800; line-height: 1.4; margin-bottom: 24px;">
+                    Это приложение работает только внутри Telegram.
+                </div>
+                
+                <!-- ЗАМЕНИТЕ YOUR_BOT_USERNAME НА ИМЯ ВАШЕГО БОТА -->
+                <a href="https://t.me/" style="text-decoration: none; display: block;">
+                    <button style="width: 100%; background: linear-gradient(135deg, #007AFF, #0056e0); box-shadow: 0 8px 24px rgba(0, 122, 255, 0.25); color: #ffffff; border: none; border-radius: 14px; padding: 18px; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform 0.2s;">
+                        Перейти в бота
+                    </button>
+                </a>
+            </div>
+        </div>
+    `;
+
+    // 3. Жестко останавливаем дальнейшее выполнение JavaScript
+    throw new Error("Открыто вне Telegram. Работа скриптов остановлена.");
+}
+// =======================================
+
+// 1. Сначала говорим боту развернуться на стандартный максимум
+tg.expand();
+
+
+// 1. Сначала говорим боту развернуться на стандартный максимум
+tg.expand();
+
+// 2. Включаем НАСТОЯЩИЙ фуллскрин (работает на новых версиях Telegram)
+if (tg.requestFullscreen) {
+    tg.requestFullscreen();
+}
+
+// 3. Отключаем свайп для закрытия (чтобы скролл вниз не закрывал приложение)
+if (tg.disableVerticalSwipes) {
+    tg.disableVerticalSwipes();
+}
+
+// 4. Подтверждение при закрытии
+if (tg.enableClosingConfirmation) {
+    tg.enableClosingConfirmation();
+}
+
+tg.setHeaderColor('#F2F2F7');
+tg.setBackgroundColor('#F2F2F7');
+
+const user = tg.initDataUnsafe?.user;
+const userId = user ? user.id.toString() : "0";
+
+let currentSelectedSub = null;
+let currentSelectedPeriod = null;
+let currentPromoDiscount = null;
+let appBotUsername = "";
+
+if (user) {
+    document.getElementById('user-name').innerText = user.first_name;
+    document.getElementById('user-avatar').src = user.photo_url || `https://ui-avatars.com/api/?name=${user.first_name}&background=E5E5EA&color=000`;
+}
+
+function resetAdminLockUI() {
+    const card = document.querySelector('.lock-card');
+    card.innerHTML = `
+        <div class="lock-icon" id="lock-icon">🔒</div>
+        <h2 class="lock-title" id="lock-title">Подписка истекла</h2>
+        <div class="lock-desc" id="lock-desc">Для работы магазина и бота необходимо оплатить подписку.</div>
+        <button id="btn-buy-admin-sub" class="primary hidden" onclick="buySystemSubscription()">
+            Оплатить бота (1 мес)
+        </button>
+    `;
+}
+
+// Инициализация
+// Инициализация
+async function init() {
+    tg.MainButton.showProgress();
+    
+    try {
+        const statusRes = await fetch('/api/system-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+        });
+        const sysStatus = await statusRes.json();
+        if (sysStatus.botUsername) {
+            appBotUsername = sysStatus.botUsername;
+        }
+        
+        const lockScreen = document.getElementById('global-lock');
+        const adminSubBadge = document.getElementById('admin-sub-status');
+        
+        // ЕСЛИ АДМИН
+        if (sysStatus.isAdmin) {
+            document.getElementById('nav-admin').classList.remove('hidden');
+            
+            // Если подписка просрочена (или ее еще нет)
+            if (sysStatus.isLocked) {
+                resetAdminLockUI(); // ВОССТАНАВЛИВАЕМ ИНТЕРФЕЙС
+                
+                document.getElementById('lock-title').innerText = sysStatus.hasUsedFreeTrial ? "Подписка истекла" : "Активация бота";
+                document.getElementById('lock-desc').innerText = sysStatus.hasUsedFreeTrial 
+                    ? "Для работы магазина и бота необходимо оплатить подписку." 
+                    : "Получите первый месяц использования бота абсолютно бесплатно!";
+                
+                const btn = document.getElementById('btn-buy-admin-sub');
+                btn.classList.remove('hidden');
+                
+                // МЕНЯЕМ ТЕКСТ КНОПКИ В ЗАВИСИМОСТИ ОТ ТРИАЛА
+                if (!sysStatus.hasUsedFreeTrial) {
+                    btn.innerText = "🎁 Получить бесплатный месяц";
+                } else {
+                    btn.innerText = "Оплатить бота (1500 ₽ / мес)";
+                }
+                
+                lockScreen.classList.add('active');
+                
+                adminSubBadge.innerText = "Подписка неактивна";
+                adminSubBadge.className = "admin-sub-badge expired";
+                adminSubBadge.style.display = "block";
+            } else {
+                // ВОТ ЭТА ЧАСТЬ БЫЛА УТЕРЯНА: ЧТО ДЕЛАТЬ, ЕСЛИ ПОДПИСКА АКТИВНА
+                lockScreen.classList.remove('active');
+                const date = new Date(sysStatus.adminSubscriptionUntil).toLocaleDateString('ru-RU');
+                adminSubBadge.innerText = '' + date;
+                adminSubBadge.className = "admin-sub-badge";
+                adminSubBadge.style.display = "block";
+                
+                // --- НОВАЯ СТРОЧКА: Обновляем дату в баннере внутри админки ---
+                document.getElementById('admin-banner-date').innerText = 'До: ' + date;
+                
+                // Грузим данные админа
+                loadAdminChannels();
+                loadWelcomeSettings();
+                loadStore();
+            }
+
+        } 
+        // ЕСЛИ ОБЫЧНЫЙ ПОЛЬЗОВАТЕЛЬ
+        else {
+            if (sysStatus.isLocked) {
+                resetAdminLockUI(); // ВОССТАНАВЛИВАЕМ ИНТЕРФЕЙС
+                document.getElementById('lock-title').innerText = "Технические работы";
+                document.getElementById('lock-desc').innerText = "Приложение временно недоступно. Возвращайтесь позже!";
+                document.getElementById('btn-buy-admin-sub').classList.add('hidden'); // У юзеров кнопки нет
+                lockScreen.classList.add('active');
+            } else {
+                lockScreen.classList.remove('active');
+                loadStore();
+            }
+        }
+    } catch(e) {
+        console.error("Ошибка инициализации:", e);
+        // В случае ошибки интернета просто скрываем лок-скрин, чтобы не блокировать юзера навсегда
+        document.getElementById('global-lock').classList.remove('active');
+        loadStore();
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+
+let currentPaymentUrl = "";
+let checkPaymentInterval = null;
+
+// Покупка АДМИНА (СОВМЕЩЕННЫЙ ИНТЕРФЕЙС)
+async function buySystemSubscription() {
+    triggerHaptic();
+    const btn = document.getElementById('btn-buy-admin-sub');
+    btn.disabled = true;
+    btn.innerText = "Обработка...";
+    
+    try {
+        const res = await fetch('/api/admin/buy-system-sub', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            // ЕСЛИ БЫЛ ВЫДАН БЕСПЛАТНЫЙ ТРИАЛ
+            if (data.isFreeTrial) {
+                showAdminPaymentSuccess(); // Сразу показываем зеленую галочку успеха
+            } 
+            // ЕСЛИ ЭТО ПЛАТНАЯ ПОКУПКА
+            else if (data.paymentUrl) {
+                currentPaymentUrl = data.paymentUrl;
+                
+                showAdminPaymentWaiting();
+                tg.openLink(data.paymentUrl);
+                
+                // Запускаем проверку (isSystemSub = true)
+                startPaymentPolling(data.transactionId, true);
+            }
+        } else {
+            tg.showAlert("❌ Ошибка: " + (data.error || "Не удалось создать платеж"));
+            init(); // Возвращаем кнопку в исходное состояние
+        }
+    } catch(e) {
+        tg.showAlert("❌ Ошибка соединения.");
+        init();
+    }
+}
+
+
+function showAdminPaymentWaiting() {
+    // --- НОВАЯ СТРОЧКА: принудительно показываем экран поверх всего ---
+    document.getElementById('global-lock').classList.add('active'); 
+    
+    const card = document.querySelector('.lock-card');
+    card.innerHTML = `
+        <div class="loader-spinner"></div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 22px; font-weight: 800;">Ожидание оплаты</h3>
+        <p style="color: var(--ios-gray); font-size: 15px; line-height: 1.4; margin-bottom: 24px;">
+            Ожидаем подтверждение платежа. Не закрывайте приложение.
+        </p>
+        <button class="primary" onclick="reopenPaymentLink()" style="margin-bottom: 12px; font-size: 16px; padding: 16px;">
+            🔗 Открыть кассу снова
+        </button>
+        <button class="primary" onclick="cancelAdminPayment()" style="background: var(--ios-light-gray); color: var(--ios-text); font-size: 16px; padding: 16px; box-shadow: none;">
+            Отменить
+        </button>
+    `;
+}
+
+
+function cancelAdminPayment() {
+    if (checkPaymentInterval) clearInterval(checkPaymentInterval);
+    triggerHaptic();
+    init(); // Возвращает окно к состоянию "Подписка истекла"
+}
+
+function showAdminPaymentSuccess() {
+    const card = document.querySelector('.lock-card');
+    card.innerHTML = `
+        <div class="success-checkmark">✓</div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 22px; font-weight: 800;">Оплата успешна!</h3>
+        <p style="color: var(--ios-gray); font-size: 15px; line-height: 1.4; margin-bottom: 0;">
+            Доступ к боту открыт. Загружаем панель управления...
+        </p>
+    `;
+    triggerHaptic();
+    setTimeout(() => {
+        // Сначала скрываем панель блокировки
+        document.getElementById('global-lock').classList.remove('active');
+        
+        // Ждем 400мс пока закончится CSS-анимация скрытия, затем перерисовываем
+        setTimeout(() => {
+            init(); 
+        }, 400); 
+    }, 3000);
+}
+
+
+init();
+
+// Утилиты
+function triggerHaptic() {
+    if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+}
+
+function navTo(pageId, element) {
+    triggerHaptic();
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    document.getElementById('page-' + pageId).classList.remove('hidden');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    element.classList.add('active');
+    
+    // Меняем текст общего заголовка
+    const mainTitle = document.getElementById('main-header-title');
+    
+    if(pageId === 'store') {
+        mainTitle.innerText = 'Тарифы';
+        loadStore();
+    }
+    if(pageId === 'mysubs') {
+        mainTitle.innerText = 'Подписки';
+        loadMySubs();
+    }
+    if(pageId === 'admin') {
+        mainTitle.innerText = 'Управление';
+        // Используем новую функцию выпадающего меню вместо старых табов
+        selectAdminSection('create', document.querySelector('.admin-dropdown-item')); 
+    }
+
+}
+
+
+// === ВИТРИНА ===
+async function loadStore() {
+    try {
+        const res = await fetch('/api/subscriptions');
+        const subs = await res.json();
+        
+        const grid = document.getElementById('store-grid');
+        grid.innerHTML = '';
+        
+        if(subs.length === 0) {
+            return grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--ios-gray);margin-top:40px;">Нет доступных тарифов</p>';
+        }
+        
+        subs.forEach(sub => {
+            const price = sub.tariffs[0].price;
+            const imgUrl = sub.photoUrl || 'https://via.placeholder.com/300?text=';
+            
+            grid.innerHTML += `
+            <div class="card-mini" onclick="openProductModal(${JSON.stringify(sub).replace(/"/g, '&quot;')})">
+                <img src="${imgUrl}" class="card-img">
+                <div class="card-info">
+                    <div class="card-title-text">${sub.title}</div>
+                    <div class="card-price">${price} ₽</div>
+                </div>
+            </div>`;
+        });
+    } catch(e) {
+        console.error('Ошибка загрузки витрины:', e);
+    }
+}
+
+function openProductModal(sub) {
+    currentSelectedSub = sub;
+    currentSelectedPeriod = sub.tariffs[0]; 
+    currentPromoDiscount = null;
+    
+    document.getElementById('modal-img').src = sub.photoUrl || 'https://via.placeholder.com/400?text=';
+    
+    // ИСПРАВЛЕНО: Формируем заголовок в формате "Название • срок • цена"
+    const periodText = formatPeriod(currentSelectedPeriod.days);
+    document.getElementById('modal-title').innerHTML = `
+        ${sub.title}<br>
+        <span style="font-size: 20px; color: var(--ios-text); font-weight: 500; font-weight: 800;">${periodText} • ${currentSelectedPeriod.price} ₽</span>
+    `;
+    
+    document.getElementById('modal-desc').innerText = sub.description || 'Описание отсутствует';
+    
+    // Прячем промокод при каждом открытии модалки
+    document.getElementById('promo-section-container').classList.remove('active');
+    document.querySelector('.promo-toggle-btn').classList.remove('active-btn');
+    
+    document.getElementById('promo-input').value = '';
+    document.getElementById('promo-message').style.display = 'none';
+    
+    openModal('product-modal');
+}
+
+
+
+function formatPeriod(days) {
+    if (days === 1) return '1 день';
+    if (days === 7) return '7 дней';
+    if (days === 30) return '30 дней';
+    if (days === 90) return '3 мес';
+    if (days === 180) return '6 мес';
+    if (days === 365) return '12 мес';
+    if (days === 9999) return 'Навсегда';
+    return `${days} дней`;
+}
+
+function selectPeriod(tariff, btn) {
+    triggerHaptic();
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSelectedPeriod = tariff;
+    updateBuyButton();
+}
+
+// Открытие/закрытие поля промокода
+function togglePromoSection() {
+    triggerHaptic();
+    const container = document.getElementById('promo-section-container');
+    const btn = document.querySelector('.promo-toggle-btn');
+    
+    container.classList.toggle('active');
+    btn.classList.toggle('active-btn');
+    
+    // Если открыли, можно автоматически поставить фокус в инпут для удобства
+    if (container.classList.contains('active')) {
+        setTimeout(() => document.getElementById('promo-input').focus(), 100);
+    }
+}
+
+
+async function applyPromocode() {
+    const code = document.getElementById('promo-input').value.trim();
+    if (!code) return;
+    
+    const price = currentSelectedPeriod.price;
+    
+    try {
+        const res = await fetch('/api/check-promocode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, price })
+        });
+        const data = await res.json();
+        
+        const messageEl = document.getElementById('promo-message');
+        
+        if (data.valid) {
+            messageEl.className = 'promo-message success';
+            messageEl.innerHTML = `✅ Промокод применен! Скидка: ${data.discount}${data.type === 'percent' ? '%' : ' ₽'}`;
+            currentPromoDiscount = data;
+        } else {
+            messageEl.className = 'promo-message error';
+            messageEl.innerHTML = '❌ ' + (data.error || 'Промокод недействителен');
+            currentPromoDiscount = null;
+        }
+        
+        messageEl.style.display = 'block';
+        updateBuyButton();
+    } catch(e) {
+        console.error('Ошибка проверки промокода:', e);
+    }
+}
+
+function updateBuyButton() {
+    let price = currentSelectedPeriod.price;
+    if (currentPromoDiscount?.valid) {
+        price = currentPromoDiscount.finalPrice;
+    }
+
+}
+
+
+async function processBuy(paymentMethod) { // <--- Принимаем аргумент
+    triggerHaptic();
+    tg.MainButton.showProgress();
+    try {
+        const res = await fetch('/api/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId,
+                subId: currentSelectedSub.id,
+                promoCode: document.getElementById('promo-input').value.trim() || null,
+                paymentMethod: paymentMethod // <--- Добавляем метод в запрос
+            })
+        });
+        const data = await res.json();
+        
+        if(data.success && data.paymentUrl) {
+            closeModal('product-modal'); 
+            currentPaymentUrl = data.paymentUrl;
+            showPaymentWaiting();
+            tg.openLink(data.paymentUrl);
+            
+            // Запускаем проверку (isSystemSub = false)
+            startPaymentPolling(data.transactionId, false);
+        } else {
+            tg.showAlert("Ошибка: " + (data.error || "Не удалось создать платеж"));
+        }
+    } catch (e) {
+        tg.showAlert("Ошибка соединения");
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+// 3. НОВЫЕ ФУНКЦИИ УПРАВЛЕНИЯ МОДАЛКОЙ ОПЛАТЫ
+function showPaymentWaiting() {
+    resetPaymentWaitingUI(); 
+    document.getElementById('payment-waiting-modal').classList.add('active');
+    document.body.classList.add('modal-active');
+    document.body.style.overflow = 'hidden';
+}
+
+
+function closePaymentWaiting() {
+    if (checkPaymentInterval) clearInterval(checkPaymentInterval);
+    triggerHaptic();
+    document.getElementById('payment-waiting-modal').classList.remove('active');
+    
+    if (!document.getElementById('global-lock').classList.contains('active')) {
+        document.body.classList.remove('modal-active');
+        document.body.style.overflow = ''; 
+    }
+}
+
+function reopenPaymentLink() {
+    triggerHaptic();
+    if(currentPaymentUrl) {
+        tg.openLink(currentPaymentUrl);
+    } else {
+        tg.showAlert("Ссылка на оплату не найдена.");
+    }
+}
+
+function startPaymentPolling(transactionId, isSystemSub) {
+    console.log("🔄 [Фронтенд] Запуск проверки статуса для ID:", transactionId);
+    if (checkPaymentInterval) clearInterval(checkPaymentInterval);
+    
+    checkPaymentInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/check-transaction/${transactionId}?isSystem=${isSystemSub}`);
+            const data = await res.json();
+            
+            console.log(`📱 [Фронтенд] Ответ от сервера: ${data.status}`);
+            
+            if (data.status === 'CONFIRMED') {
+                console.log("✅ [Фронтенд] Успех пойман на фронте!");
+                clearInterval(checkPaymentInterval);
+                
+                // РАЗДЕЛЯЕМ ЛОГИКУ УСПЕХА
+                if (isSystemSub) {
+                    showAdminPaymentSuccess();
+                } else {
+                    showPaymentSuccess(); 
+                }
+                
+            } else if (['CANCELED', 'CHARGEBACKED', 'EXPIRED', 'TIMEOUT'].includes(data.status)) {
+                console.log(`❌ [Фронтенд] Оплата отменена/ошибка: ${data.status}`);
+                clearInterval(checkPaymentInterval);
+                
+                // РАЗДЕЛЯЕМ ЛОГИКУ ОТМЕНЫ
+                if (isSystemSub) {
+                    cancelAdminPayment();
+                } else {
+                    closePaymentWaiting();
+                }
+                tg.showAlert('Оплата была отменена или время ожидания истекло.');
+            }
+        } catch(e) {
+            console.error("⚠️ [Фронтенд] Ошибка сети при проверке статуса:", e);
+        }
+    }, 5000); // 5 секунд
+}
+
+function showPaymentSuccess() {
+    const card = document.querySelector('.payment-waiting-card');
+    card.innerHTML = `
+        <div class="success-checkmark">✓</div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 22px; font-weight: 800;">Оплата успешна!</h3>
+        <p style="color: var(--ios-gray); font-size: 15px; line-height: 1.4; margin-bottom: 0;">
+            Подписка активирована. Загружаем...
+        </p>
+    `;
+    triggerHaptic();
+    setTimeout(() => {
+        closePaymentWaiting();
+        // Используем встроенную навигацию для надежного переключения вкладки
+        navTo('mysubs', document.querySelectorAll('.nav-item')[1]); 
+    }, 3000);
+}
+
+
+// Функция возврата интерфейса загрузки (на случай повторного открытия)
+function resetPaymentWaitingUI() {
+    const card = document.querySelector('.payment-waiting-card');
+    card.innerHTML = `
+        <div class="loader-spinner"></div>
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 22px; font-weight: 800;">Ожидание оплаты</h3>
+        <p style="color: var(--ios-gray); font-size: 15px; line-height: 1.4; margin-bottom: 24px;">
+            Мы перенаправили вас на кассу. После успешной оплаты бот автоматически выдаст вам доступ и пришлет уведомление.
+        </p>
+        <button class="primary" onclick="reopenPaymentLink()" style="margin-bottom: 12px; font-size: 16px; padding: 16px;">
+            🔗 Открыть кассу снова
+        </button>
+        <button class="primary" onclick="closePaymentWaiting()" style="background: var(--ios-light-gray); color: var(--ios-text); font-size: 16px; padding: 16px; box-shadow: none;">
+            Отменить
+        </button>
+    `;
+}
+
+// === МОИ ПОДПИСКИ ===
+async function loadMySubs() {
+    try {
+        const res = await fetch(`/api/my-subscriptions?userId=${userId}`);
+        const subs = await res.json();
+        
+        const list = document.getElementById('mysubs-list');
+        list.innerHTML = '';
+        
+        if(subs.length === 0) {
+            return list.innerHTML = '<p style="text-align:center;color:var(--ios-gray);margin-top:40px;">Нет активных подписок</p>';
+        }
+        
+        const now = Date.now();
+        
+        subs.forEach(sub => {
+            const date = new Date(sub.expiresAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+            const imgUrl = sub.photoUrl || 'https://via.placeholder.com/100?text=';
+            
+            // Прогресс подписки
+            const total = sub.expiresAt - sub.createdAt;
+            const remaining = sub.expiresAt - now;
+            const progress = Math.max(0, Math.min(100, (remaining / total) * 100));
+            const daysLeft = Math.ceil(remaining / (24 * 60 * 60 * 1000));
+            
+            list.innerHTML += `
+            <div class="my-sub-card">
+                <img src="${imgUrl}">
+                <div class="my-sub-info">
+                    <div class="my-sub-title">${sub.title}</div>
+                    <div class="my-sub-date">Активно до ${date}</div>
+                    <div class="subscription-progress">
+                        <div class="progress-bar" style="width: ${progress}%"></div>
+                    </div>
+                    <div class="progress-text">Осталось ${daysLeft} дн.</div>
+                </div>
+                <button class="btn-app-store" onclick="tg.openTelegramLink('${sub.inviteLink}')">Открыть</button>
+            </div>`;
+        });
+    } catch(e) {
+        console.error('Ошибка загрузки подписок:', e);
+    }
+}
+
+// === АДМИНКА ===
+function switchAdminTab(tab) {
+    triggerHaptic();
+    
+    document.getElementById('admin-create').classList.add('hidden');
+    document.getElementById('admin-manage').classList.add('hidden');
+    document.getElementById('admin-stats').classList.add('hidden');
+    document.getElementById('admin-promo').classList.add('hidden');
+    document.getElementById('admin-broadcast').classList.add('hidden');
+    document.getElementById('admin-users').classList.add('hidden');
+    document.getElementById('admin-welcome').classList.add('hidden');
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.getElementById('admin-' + tab).classList.remove('hidden');
+    
+    if (tab === 'manage') loadAdminManageList();
+    if (tab === 'stats') loadDetailedStats();
+    if (tab === 'promo') loadPromocodes();
+    if (tab === 'users') loadUsers();
+    if (tab === 'welcome') loadWelcomeSettings();
+}
+
+// Приветствие
+async function loadWelcomeSettings() {
+    try {
+        const res = await fetch('/api/admin/welcome');
+        const settings = await res.json();
+        
+        document.getElementById('welcome-text').value = settings.content || 'Добро пожаловать в магазин подписок! Открой приложение 👇';
+        
+        if (settings.mediaUrl) {
+            document.getElementById('welcome-label-text').innerText = "Медиафайл загружен (нажмите, чтобы изменить)";
+            document.getElementById('welcome-preview-area').style.background = 'rgba(52, 199, 89, 0.1)';
+            document.getElementById('welcome-preview-area').style.borderColor = '#34C759';
+            document.getElementById('welcome-preview-area').style.color = '#34C759';
+        }
+    } catch(e) {
+        console.error('Ошибка загрузки приветствия:', e);
+    }
+}
+
+async function saveWelcomeSettings() {
+    triggerHaptic();
+    
+    const content = document.getElementById('welcome-text').value;
+    const media = document.getElementById('welcome-media').files[0];
+    
+    // Автоматически определяем тип по файлу (для бэкенда)
+    let type = 'text';
+    if (media) {
+        if (media.type.startsWith('video/')) type = 'video';
+        else if (media.type === 'image/gif') type = 'gif';
+        else type = 'photo';
+    } else {
+        // Если файла нет, но он был загружен ранее, бэкенд сохранит старый тип, 
+        // если мы не передаем пустое поле. Отправим 'keep_old' или 'text'.
+    }
+    
+    const formData = new FormData();
+    formData.append('adminId', userId);
+    formData.append('type', type);
+    formData.append('content', content);
+    if (media) formData.append('media', media);
+    
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/welcome', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) tg.showAlert('Приветствие сохранено!');
+    } catch(e) {
+        tg.showAlert('Ошибка при сохранении');
+    }
+    tg.MainButton.hideProgress();
+}
+
+// Управление периодами
+let periodCounter = 0;
+
+function addPeriod() {
+    const container = document.getElementById('periods-container');
+    const periodId = `period-${periodCounter++}`;
+    const periodDiv = document.createElement('div');
+    periodDiv.className = 'period-item';
+    periodDiv.id = periodId;
+    periodDiv.innerHTML = `
+        <select class="period-days modern-input" style="width: 120px;">
+            <option value="1">1 день</option>
+            <option value="7">7 дней</option>
+            <option value="30" selected>30 дней</option>
+            <option value="90">3 месяца</option>
+            <option value="180">6 месяцев</option>
+            <option value="365">12 месяцев</option>
+            <option value="9999">Навсегда</option>
+        </select>
+        <input type="number" class="period-price-input" placeholder="Цена" value="">
+    `; // КРЕСТИК УДАЛЕН ОТСЮДА
+    container.appendChild(periodDiv);
+}
+
+
+function removePeriod(id) {
+    document.getElementById(id).remove();
+}
+
+function addEditPeriod() {
+    const container = document.getElementById('edit-periods-container');
+    const periodId = `edit-period-${periodCounter++}`;
+    
+    const periodDiv = document.createElement('div');
+    periodDiv.className = 'period-item';
+    periodDiv.id = periodId;
+    periodDiv.innerHTML = `
+        <select class="period-days modern-input" style="width: 120px;">
+            <option value="1">1 день</option>
+            <option value="7">7 дней</option>
+            <option value="30" selected>30 дней</option>
+            <option value="90">3 месяца</option>
+            <option value="180">6 месяцев</option>
+            <option value="365">12 месяцев</option>
+            <option value="9999">Навсегда</option>
+        </select>
+        <input type="number" class="period-price-input" placeholder="Цена" value="">
+        <span class="remove-period" onclick="removePeriod('${periodId}')">✕</span>
+    `;
+    
+    container.appendChild(periodDiv);
+}
+
+function getPeriodsFromContainer(containerId) {
+    const container = document.getElementById(containerId);
+    const periods = [];
+    
+    container.querySelectorAll('.period-item').forEach(item => {
+        const days = parseInt(item.querySelector('.period-days').value);
+        const price = parseInt(item.querySelector('.period-price-input').value);
+        
+        if (days && price) {
+            periods.push({ days, price });
+        }
+    });
+    
+    return periods;
+}
+
+function setPeriodsToContainer(containerId, tariffs) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    
+    tariffs.forEach(tariff => {
+        const periodId = `period-${periodCounter++}`;
+        
+        const periodDiv = document.createElement('div');
+        periodDiv.className = 'period-item';
+        periodDiv.id = periodId;
+        periodDiv.innerHTML = `
+            <select class="period-days modern-input" style="width: 120px;">
+                <option value="1" ${tariff.days === 1 ? 'selected' : ''}>1 день</option>
+                <option value="7" ${tariff.days === 7 ? 'selected' : ''}>7 дней</option>
+                <option value="30" ${tariff.days === 30 ? 'selected' : ''}>30 дней</option>
+                <option value="90" ${tariff.days === 90 ? 'selected' : ''}>3 месяца</option>
+                <option value="180" ${tariff.days === 180 ? 'selected' : ''}>6 месяцев</option>
+                <option value="365" ${tariff.days === 365 ? 'selected' : ''}>12 месяцев</option>
+                <option value="9999" ${tariff.days === 9999 ? 'selected' : ''}>Навсегда</option>
+            </select>
+            <input type="number" class="period-price-input" placeholder="Цена" value="${tariff.price}">
+            <span class="remove-period" onclick="removePeriod('${periodId}')">✕</span>
+        `;
+        
+        container.appendChild(periodDiv);
+    });
+}
+
+// Создание тарифа
+async function createSubscription() {
+    triggerHaptic();
+    
+    const channelId = document.getElementById('channelId').value;
+    const title = document.getElementById('title').value;
+    const photo = document.getElementById('photo').files[0];
+    const link = document.getElementById('inviteLink').value;
+    const periods = getPeriodsFromContainer('periods-container');
+    
+    if(!channelId || !title || periods.length === 0 || !link || !photo) {
+        return tg.showAlert("Заполните все обязательные поля и обязательно загрузите обложку!");
+    }
+
+    
+    const formData = new FormData();
+    formData.append('adminId', userId);
+    formData.append('channelId', channelId);
+    formData.append('title', title);
+    formData.append('description', document.getElementById('desc').value);
+    formData.append('inviteLink', link);
+    formData.append('tariffs', JSON.stringify(periods));
+    
+    if(photo) formData.append('photo', photo);
+    
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/create-subscription', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if(data.success) {
+            tg.showAlert('Тариф успешно создан!');
+            
+            // Очищаем форму
+            document.getElementById('title').value = '';
+            document.getElementById('desc').value = '';
+            document.getElementById('inviteLink').value = '';
+            document.getElementById('photo-preview-img').src = '';
+            document.getElementById('photo-preview-area').classList.remove('has-image');
+            document.getElementById('photo-label-text').innerText = 'Загрузить картинку';
+            document.getElementById('selected-channel-text').innerText = 'Выберите канал...';
+            document.getElementById('selected-channel-text').classList.add('placeholder');
+            document.getElementById('channelId').value = '';
+            document.getElementById('periods-container').innerHTML = '';
+            addPeriod(); // Добавляем один пустой период по умолчанию
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка при создании тарифа');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+// Управление тарифами
+async function loadAdminManageList() {
+    closeEditForm();
+    
+    try {
+        const res = await fetch('/api/subscriptions');
+        const subs = await res.json();
+        
+        const list = document.getElementById('manage-list');
+        list.innerHTML = '';
+        
+        if(subs.length === 0) {
+            return list.innerHTML = '<p style="text-align:center;color:var(--ios-gray);margin-top:40px;">Вы еще не создали тарифы</p>';
+        }
+        
+        subs.forEach(sub => {
+            const price = sub.tariffs[0].price;
+            const imgUrl = sub.photoUrl || 'https://via.placeholder.com/100?text=';
+            
+            list.innerHTML += `
+            <div class="my-sub-card" onclick="openEditForm(${JSON.stringify(sub).replace(/"/g, '&quot;')})">
+                <img src="${imgUrl}">
+                <div class="my-sub-info">
+                    <div class="my-sub-title">${sub.title}</div>
+                    <div class="my-sub-date">от ${price} ₽ · ${sub.tariffs.length} периодов</div>
+                </div>
+                <div style="color: var(--ios-blue); font-weight:600; font-size: 14px;">Изм.</div>
+            </div>`;
+        });
+    } catch(e) {
+        console.error('Ошибка загрузки тарифов:', e);
+    }
+}
+
+function openEditForm(sub) {
+    document.getElementById('edit-subId').value = sub.id;
+    document.getElementById('edit-title').value = sub.title;
+    document.getElementById('edit-desc').value = sub.description;
+    document.getElementById('edit-inviteLink').value = sub.inviteLink;
+    
+    // Заполняем периоды
+    setPeriodsToContainer('edit-periods-container', sub.tariffs);
+    
+    const previewArea = document.getElementById('edit-photo-preview-area');
+    const previewImg = document.getElementById('edit-photo-preview-img');
+    const photoInput = document.getElementById('edit-photo');
+    photoInput.value = '';
+    
+    if (sub.photoUrl) {
+        previewImg.src = sub.photoUrl;
+        previewArea.classList.add('has-image');
+    } else {
+        previewImg.src = '';
+        previewArea.classList.remove('has-image');
+    }
+    
+    document.getElementById('manage-list').classList.add('hidden');
+    document.getElementById('edit-form-container').classList.remove('hidden');
+}
+
+function closeEditForm() {
+    document.getElementById('edit-form-container').classList.add('hidden');
+    document.getElementById('manage-list').classList.remove('hidden');
+}
+
+async function updateSubscription() {
+    triggerHaptic();
+    
+    const subId = document.getElementById('edit-subId').value;
+    const title = document.getElementById('edit-title').value;
+    const desc = document.getElementById('edit-desc').value;
+    const link = document.getElementById('edit-inviteLink').value;
+    const photo = document.getElementById('edit-photo').files[0];
+    const periods = getPeriodsFromContainer('edit-periods-container');
+    
+    if(!title || periods.length === 0 || !link) {
+        return tg.showAlert("Заполните название, цену и ссылку!");
+    }
+    
+    const formData = new FormData();
+    formData.append('adminId', userId);
+    formData.append('subId', subId);
+    formData.append('title', title);
+    formData.append('description', desc);
+    formData.append('inviteLink', link);
+    formData.append('tariffs', JSON.stringify(periods));
+    
+    if (photo) formData.append('photo', photo);
+    
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/edit-subscription', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if(data.success) {
+            tg.showAlert('Тариф успешно обновлен!');
+            loadAdminManageList();
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка при обновлении');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+async function deleteSubscription() {
+    const subId = document.getElementById('edit-subId').value;
+    
+    // Окно с подтверждением
+    if (!confirm("Вы уверены, что хотите удалить этот тариф? Это действие нельзя отменить!")) {
+        return; 
+    }
+
+    triggerHaptic();
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/delete-subscription', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId, subId: subId })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            tg.showAlert('Тариф успешно удален!');
+            closeEditForm();
+            loadAdminManageList();
+        } else {
+            tg.showAlert(data.error || 'Ошибка при удалении');
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка при удалении');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+
+// Статистика (без графиков)
+async function loadDetailedStats() {
+    try {
+        const res = await fetch('/api/admin/stats/detailed');
+        const stats = await res.json();
+        
+        // Обновляем доходы
+        document.getElementById('stat-today').innerText = stats.income.today + ' ₽';
+        document.getElementById('stat-7days').innerText = stats.income.days7 + ' ₽';
+        document.getElementById('stat-30days').innerText = stats.income.days30 + ' ₽';
+        document.getElementById('stat-all-time').innerText = stats.income.allTime + ' ₽';
+        
+        // Обновляем общие цифры
+        document.getElementById('stat-total-purchases').innerText = stats.totalPurchases;
+        document.getElementById('stat-total-users').innerText = stats.totalUsers;
+
+        // Обновляем статистику по каналам
+        const channelsList = document.getElementById('channels-stats-list');
+        channelsList.innerHTML = '';
+
+        if (stats.channels.length === 0) {
+            channelsList.innerHTML = '<p style="text-align:center; color:var(--ios-gray);">Пока нет данных по каналам</p>';
+        } else {
+            // Сортируем каналы по доходу (от большего к меньшему)
+            stats.channels.sort((a, b) => b.income - a.income).forEach(channel => {
+                channelsList.innerHTML += `
+                <div class="channel-stat-item">
+                    <div>
+                        <div class="channel-stat-title">${channel.title}</div>
+                        <div class="channel-stat-details">Продаж: ${channel.purchases}</div>
+                    </div>
+                    <div class="channel-stat-income">+${channel.income} ₽</div>
+                </div>`;
+            });
+        }
+        
+    } catch(e) {
+        console.error('Ошибка загрузки статистики:', e);
+    }
+}
+
+
+// Промокоды
+async function createPromocode() {
+    triggerHaptic();
+    
+    const code = document.getElementById('promo-code').value.trim().toUpperCase();
+    const type = document.getElementById('promo-type').value;
+    const discount = document.getElementById('promo-discount').value;
+    const expires = document.getElementById('promo-expires').value;
+    const maxUses = parseInt(document.getElementById('promo-max-uses').value) || 0;
+    
+    if (!code || !discount) {
+        return tg.showAlert('Заполните код и размер скидки');
+    }
+    
+    const expiresAt = expires ? new Date(expires).getTime() : null;
+    
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/promocode/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                adminId: userId, 
+                code, 
+                type, 
+                discount, 
+                expiresAt, 
+                maxUses 
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            tg.showAlert('Промокод создан!');
+            document.getElementById('promo-code').value = '';
+            document.getElementById('promo-discount').value = '';
+            document.getElementById('promo-expires').value = '';
+            loadPromocodes();
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка при создании');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+async function loadPromocodes() {
+    try {
+        const res = await fetch('/api/admin/promocodes');
+        const promocodes = await res.json();
+        
+        const list = document.getElementById('promocodes-list');
+        list.innerHTML = '';
+        
+        if (promocodes.length === 0) {
+            list.innerHTML = '<p style="text-align:center;color:var(--ios-gray);">Промокодов пока нет</p>';
+            return;
+        }
+        
+        promocodes.forEach(promo => {
+            const expires = promo.expiresAt ? new Date(promo.expiresAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : 'бессрочно';
+            const uses = `${promo.uses}${promo.maxUses ? '/' + promo.maxUses : ''}`;
+            
+            list.innerHTML += `
+            <div class="promo-item">
+                <div>
+                    <div class="promo-code">${promo.code}</div>
+                    <div class="promo-stats">Скидка: ${promo.discount}${promo.type === 'percent' ? '%' : ' ₽'}</div>
+                    <div class="promo-stats">Действует до: ${expires}</div>
+                    <div class="promo-stats">Использований: ${uses}</div>
+                </div>
+                <div class="promo-toggle ${promo.isActive ? 'active' : ''}" 
+                     onclick="togglePromocode('${promo.id}', ${!promo.isActive})">
+                </div>
+            </div>`;
+        });
+    } catch(e) {
+        console.error('Ошибка загрузки промокодов:', e);
+    }
+}
+
+async function togglePromocode(promoId, isActive) {
+    try {
+        const res = await fetch('/api/admin/promocode/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId, promoId, isActive })
+        });
+        
+        if ((await res.json()).success) {
+            loadPromocodes();
+        }
+    } catch(e) {
+        console.error('Ошибка изменения промокода:', e);
+    }
+}
+
+async function sendBroadcast() {
+    triggerHaptic();
+    
+    const content = document.getElementById('broadcast-text').value;
+    const media = document.getElementById('broadcast-media').files[0];
+    
+    if (!content) {
+        return tg.showAlert('Введите текст сообщения');
+    }
+    
+    // Автоматически определяем тип по файлу (как в приветствии)
+    let type = 'text';
+    if (media) {
+        if (media.type.startsWith('video/')) type = 'video';
+        else if (media.type === 'image/gif') type = 'gif';
+        else type = 'photo';
+    }
+    
+    const formData = new FormData();
+    formData.append('adminId', userId);
+    formData.append('type', type);
+    formData.append('content', content);
+    if (media) formData.append('media', media);
+    
+    if (!confirm('Отправить рассылку всем пользователям?')) return;
+    
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/broadcast', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            tg.showAlert(`Рассылка отправлена!\nДоставлено: ${data.sent} из ${data.total}`);
+            
+            // Очищаем форму
+            document.getElementById('broadcast-text').value = '';
+            document.getElementById('broadcast-media').value = '';
+            
+            // Возвращаем кнопку загрузки в исходный вид
+            const previewArea = document.getElementById('broadcast-preview-area');
+            const labelText = document.getElementById('broadcast-label-text');
+            if(previewArea) {
+                previewArea.style.background = '';
+                previewArea.style.borderColor = '';
+                previewArea.style.color = '';
+            }
+            if(labelText) {
+                labelText.innerText = "Нажмите, чтобы загрузить медиа";
+            }
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка при отправке');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+
+// Управление пользователями
+let allUsers = [];
+
+async function loadUsers() {
+    try {
+        const res = await fetch('/api/admin/users');
+        allUsers = await res.json();
+        // Сортируем: сначала те, у кого есть активные подписки
+        allUsers.sort((a, b) => {
+            const aActive = a.subscriptions.some(s => s.expiresAt > Date.now()) ? 1 : 0;
+            const bActive = b.subscriptions.some(s => s.expiresAt > Date.now()) ? 1 : 0;
+            return bActive - aActive;
+        });
+        displayUsers(allUsers);
+    } catch(e) {
+        console.error('Ошибка загрузки пользователей:', e);
+    }
+}
+
+function displayUsers(users) {
+    const list = document.getElementById('users-list');
+    list.innerHTML = '';
+    
+    users.forEach(user => {
+        const activeSubs = user.subscriptions.filter(s => s.expiresAt > Date.now());
+        const hasActive = activeSubs.length > 0;
+        
+        let displayName = user.firstName;
+        if (user.username) displayName += ` (@${user.username})`;
+        
+        const badgeHtml = hasActive 
+            ? `<div class="user-status-badge active">🟢 Активных подписок: ${activeSubs.length}</div>`
+            : `<div class="user-status-badge inactive">🔴 Нет активных подписок</div>`;
+        
+        list.innerHTML += `
+        <div class="user-item" onclick="openUserEditModal('${user.userId}')">
+            <div class="user-info">
+                <div class="user-title-wrap">
+                    <div class="user-name">${displayName}</div>
+                    <div class="user-sub-status" style="margin-top:2px;">ID: ${user.userId} • Потрачено: ${user.totalSpent} ₽</div>
+                    ${badgeHtml}
+                </div>
+                <svg fill="var(--ios-gray)" width="20" height="20" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </div>
+        </div>`;
+    });
+}
+
+function searchUsers() {
+    const query = document.getElementById('user-search').value.toLowerCase();
+    
+    if (!query) {
+        displayUsers(allUsers);
+        return;
+    }
+    
+    const filtered = allUsers.filter(u => 
+        u.userId.toLowerCase().includes(query) || 
+        (u.username && u.username.toLowerCase().includes(query)) ||
+        (u.firstName && u.firstName.toLowerCase().includes(query))
+    );
+    
+    displayUsers(filtered);
+}
+
+function openUserEditModal(userId) {
+    const user = allUsers.find(u => u.userId === userId);
+    if(!user) return;
+
+    document.getElementById('user-edit-modal').classList.add('active');
+    document.getElementById('edit-user-id').value = userId;
+    
+    let displayName = user.username ? `@${user.username}` : user.firstName;
+    document.getElementById('user-edit-title').innerText = displayName;
+    document.getElementById('user-edit-id').innerText = `ID: ${userId}`;
+    
+    const selector = document.getElementById('user-sub-selector');
+    const btnExtend = document.getElementById('btn-extend-user');
+    const btnCancel = document.getElementById('btn-cancel-user');
+    
+    selector.innerHTML = '';
+    
+    if (user.subscriptions.length === 0) {
+        selector.innerHTML = '<option value="">У пользователя нет подписок</option>';
+        selector.disabled = true;
+        btnExtend.disabled = true;
+        btnCancel.disabled = true;
+    } else {
+        selector.disabled = false;
+        btnExtend.disabled = false;
+        btnCancel.disabled = false;
+        
+        user.subscriptions.forEach(sub => {
+            const isActive = sub.expiresAt > Date.now();
+            const statusText = isActive 
+                ? `Активна (до ${new Date(sub.expiresAt).toLocaleDateString('ru-RU')})` 
+                : 'Истекла';
+            
+            selector.innerHTML += `<option value="${sub.subId}">${sub.title} — ${statusText}</option>`;
+        });
+    }
+}
+
+
+function closeUserEditModal() {
+    document.getElementById('user-edit-modal').classList.remove('active');
+}
+
+async function extendUserSubscription() {
+    // Используем другое имя переменной для клиента, чтобы не перекрывать глобальный userId (ваш ID)
+    const targetUserId = document.getElementById('edit-user-id').value;
+    const subId = document.getElementById('user-sub-selector').value; // Берем ID из селекта
+    const days = document.getElementById('extend-days').value;
+    
+    if(!subId) return tg.showAlert('Выберите подписку!');
+
+    triggerHaptic();
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/user/update-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // adminId: userId (глобальный, ваш ID), userId: targetUserId (кому продлеваем)
+            body: JSON.stringify({ adminId: userId, userId: targetUserId, subId, action: 'extend', days })
+        });
+        
+        if ((await res.json()).success) {
+            tg.showAlert('✅ Подписка успешно продлена!');
+            closeUserEditModal();
+            loadUsers();
+        } else {
+            tg.showAlert('❌ Ошибка доступа');
+        }
+    } catch(e) {
+        tg.showAlert('❌ Ошибка при продлении');
+    }
+    tg.MainButton.hideProgress();
+}
+
+async function cancelUserSubscription() {
+    // Используем другое имя переменной для клиента
+    const targetUserId = document.getElementById('edit-user-id').value;
+    const subId = document.getElementById('user-sub-selector').value; // Берем ID из селекта
+    
+    if(!subId) return tg.showAlert('Выберите подписку!');
+
+    if (!confirm('Вы уверены, что хотите навсегда отключить и удалить эту подписку у пользователя?')) return;
+    
+    triggerHaptic();
+    tg.MainButton.showProgress();
+
+    try {
+        const res = await fetch('/api/admin/user/update-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // adminId: userId (глобальный, ваш ID), userId: targetUserId (кому отключаем)
+            body: JSON.stringify({ adminId: userId, userId: targetUserId, subId, action: 'cancel' })
+        });
+        
+        if ((await res.json()).success) {
+            tg.showAlert('✅ Подписка отключена и удалена!');
+            closeUserEditModal();
+            loadUsers();
+        } else {
+            tg.showAlert('❌ Ошибка доступа');
+        }
+    } catch(e) {
+        tg.showAlert('❌ Ошибка при отключении');
+    }
+    tg.MainButton.hideProgress();
+}
+
+// Каналы
+function openChannelModal() { 
+    openModal('channel-modal'); 
+}
+
+function selectChannel(id, title) {
+    triggerHaptic();
+    document.getElementById('channelId').value = id;
+    const textEl = document.getElementById('selected-channel-text');
+    textEl.innerText = title;
+    textEl.classList.remove('placeholder');
+    textEl.style.color = "var(--ios-text)";
+    textEl.style.fontWeight = "600";
+    closeModal('channel-modal');
+}
+
+async function loadAdminChannels() {
+    try {
+        const res = await fetch('/api/admin/channels');
+        const channels = await res.json();
+        
+        const container = document.getElementById('channel-list-container');
+        container.innerHTML = '';
+        
+        channels.forEach(ch => {
+            const letter = ch.title.charAt(0).toUpperCase();
+            container.innerHTML += `
+            <div class="channel-item" onclick="selectChannel('${ch.id}', '${ch.title.replace(/'/g, "\\'")}')">
+                <div class="channel-avatar">${letter}</div>
+                <div class="channel-info">
+                    <div class="channel-name">${ch.title}</div>
+                </div>
+                <svg fill="var(--ios-gray)" width="20" height="20" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </div>`;
+        });
+    } catch(e) {
+        console.error('Ошибка загрузки каналов:', e);
+    }
+}
+
+// Общие функции модалок
+function openModal(modalId) {
+    triggerHaptic();
+    document.body.classList.add('modal-active');
+    document.getElementById(modalId).classList.add('active');
+}
+
+function closeModal(modalId) {
+    triggerHaptic();
+    document.body.classList.remove('modal-active');
+    document.body.style.overflow = ''; // <--- ВОТ ЭТА СТРОКА ВОЗВРАЩАЕТ СКРОЛЛ!
+    document.getElementById(modalId).classList.remove('active');
+}
+
+
+// Обработчики загрузки фото
+document.getElementById('photo').addEventListener('change', function(e) {
+    handleImagePreview('photo', this.files[0]);
+});
+
+document.getElementById('edit-photo').addEventListener('change', function(e) {
+    handleImagePreview('edit-photo', this.files[0]);
+});
+
+document.getElementById('welcome-media').addEventListener('change', function(e) {
+    handleImagePreview('welcome', this.files[0]);
+});
+
+document.getElementById('broadcast-media').addEventListener('change', function(e) {
+    handleImagePreview('broadcast', this.files[0]);
+});
+
+function handleImagePreview(prefix, file) {
+    const previewArea = document.getElementById(`${prefix}-preview-area`);
+    const previewImg = document.getElementById(`${prefix}-preview-img`);
+    const labelText = document.getElementById(`${prefix}-label-text`);
+    
+    // Специальная логика для приветствия И рассылки (без превью картинки, просто зеленеет фон)
+    if (prefix === 'welcome' || prefix === 'broadcast') {
+        if (file) {
+            if (labelText) labelText.innerText = "Файл успешно выбран. (нажмите, чтобы изменить)";
+            if (previewArea) {
+                previewArea.style.background = 'rgba(52, 199, 89, 0.1)';
+                previewArea.style.borderColor = '#34C759';
+                previewArea.style.color = '#34C759';
+            }
+        } else {
+            if (labelText) labelText.innerText = "Нажмите, чтобы загрузить медиа";
+            if (previewArea) {
+                previewArea.style.background = '';
+                previewArea.style.borderColor = '';
+                previewArea.style.color = '';
+            }
+        }
+        return; // Выходим, чтобы не пытаться отрендерить картинку
+    }
+    
+    // Обычная логика для тарифов (с картинкой превью)
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            if(previewImg) previewImg.src = e.target.result;
+            if(previewArea) previewArea.classList.add('has-image');
+            if(labelText) labelText.innerText = "Изменить фото";
+        };
+        reader.readAsDataURL(file);
+    } else {
+        if(previewImg) previewImg.src = '';
+        if(previewArea) previewArea.classList.remove('has-image');
+        if(labelText) labelText.innerText = "Загрузить картинку";
+    }
+}
+
+
+// Функции для выпадающего меню
+let isDropdownOpen = false;
+
+function toggleAdminDropdown() {
+    const dropdown = document.getElementById('adminDropdown');
+    const button = document.getElementById('adminMenuButton');
+    
+    isDropdownOpen = !isDropdownOpen;
+    
+    if (isDropdownOpen) {
+        dropdown.classList.add('active');
+        button.classList.add('active');
+    } else {
+        dropdown.classList.remove('active');
+        button.classList.remove('active');
+    }
+}
+
+// Закрываем dropdown при клике вне его
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('adminDropdown');
+    const button = document.getElementById('adminMenuButton');
+    
+    if (isDropdownOpen && !dropdown.contains(event.target) && !button.contains(event.target)) {
+        dropdown.classList.remove('active');
+        button.classList.remove('active');
+        isDropdownOpen = false;
+    }
+});
+
+// Улучшенная функция открытия модалки с адаптивной высотой
+function openModal(modalId) {
+    triggerHaptic();
+    document.body.classList.add('modal-active');
+    
+    const modal = document.getElementById(modalId);
+    const modalContent = modal.querySelector('.modal-content');
+    
+    // Проверяем высоту контента и применяем соответствующий класс
+    setTimeout(() => {
+        if (modalContent.scrollHeight > window.innerHeight * 0.85) {
+            modalContent.classList.add('tall-content');
+        } else {
+            modalContent.classList.remove('tall-content');
+        }
+    }, 10);
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// Переопределяем существующую функцию
+window.openModal = openModal;
+
+function selectAdminSection(section, element) {
+    triggerHaptic();
+    
+    // Скрываем все разделы
+    document.getElementById('admin-welcome').classList.add('hidden');
+    document.getElementById('admin-create').classList.add('hidden');
+    document.getElementById('admin-manage').classList.add('hidden');
+    document.getElementById('admin-stats').classList.add('hidden');
+    document.getElementById('admin-promo').classList.add('hidden');
+    document.getElementById('admin-broadcast').classList.add('hidden');
+    document.getElementById('admin-users').classList.add('hidden');
+    document.getElementById('admin-payment').classList.add('hidden');
+
+    
+    // Показываем выбранный раздел
+    document.getElementById('admin-' + section).classList.remove('hidden');
+    
+    // Обновляем текст на кнопке
+    const sectionNames = {
+        'create': '📝 Создать тариф',
+        'manage': '📋 Мои тарифы',
+        'stats': '📊 Статистика',
+        'promo': '🏷️ Промокоды',
+        'broadcast': '📢 Рассылка',
+        'users': '👥 Пользователи',
+        'welcome': '👋 Приветствие',
+        'payment': '💳 Касса (Оплата)' // <--- ДОБАВИТЬ СЮДА
+    };
+    
+    document.getElementById('selectedSectionText').innerText = sectionNames[section];
+    document.getElementById('currentSectionBadge').innerText = sectionNames[section].substring(2);
+    
+    // Убираем активный класс со всех пунктов
+    document.querySelectorAll('.admin-dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Добавляем активный класс выбранному пункту
+    if (element) {
+        element.classList.add('active');
+    }
+    
+    // Закрываем dropdown
+    const dropdown = document.getElementById('adminDropdown');
+    const button = document.getElementById('adminMenuButton');
+    dropdown.classList.remove('active');
+    button.classList.remove('active');
+    isDropdownOpen = false;
+    
+    // Загружаем данные если нужно
+    if (section === 'manage') loadAdminManageList();
+    if (section === 'stats') {
+        setTimeout(() => {
+            loadDetailedStats();
+        }, 100);
+    }
+    if (section === 'promo') loadPromocodes();
+    if (section === 'users') loadUsers();
+    if (section === 'welcome') loadWelcomeSettings();
+    if (section === 'payment') loadPaymentSettings();
+}
+
+async function loadPaymentSettings() {
+    try {
+        const res = await fetch(`/api/admin/payment-settings?adminId=${userId}`);
+        const data = await res.json();
+        document.getElementById('pay-merchant-id').value = data.merchantId || '';
+        document.getElementById('pay-api-secret').value = data.apiSecret || '';
+    } catch(e) {
+        console.error('Ошибка загрузки настроек кассы:', e);
+    }
+}
+
+async function savePaymentSettings() {
+    triggerHaptic();
+    const merchantId = document.getElementById('pay-merchant-id').value.trim();
+    const apiSecret = document.getElementById('pay-api-secret').value.trim();
+    
+    if(!merchantId || !apiSecret) {
+        return tg.showAlert("Заполните оба поля: MERCHANT_ID и API_SECRET");
+    }
+
+    tg.MainButton.showProgress();
+    try {
+        const res = await fetch('/api/admin/payment-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId, merchantId, apiSecret })
+        });
+        const data = await res.json();
+        if (data.success) {
+            tg.showAlert('✅ Настройки кассы успешно сохранены!');
+        }
+    } catch(e) {
+        tg.showAlert('❌ Ошибка при сохранении');
+    }
+    tg.MainButton.hideProgress();
+}
+
+
+// Функция для настройки приветствия с эмодзи через самого бота
+async function setupWelcomeViaBot() {
+    triggerHaptic();
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/start-welcome-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            tg.close(); // Закрываем Mini App, чтобы админ увидел чат с ботом
+        } else {
+            tg.showAlert('Ошибка доступа');
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка соединения');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+// ==========================================
+// ЛОГИКА ЗАКРЫТИЯ ШТОРОК (СВАЙП И КЛИК ВНЕ)
+// ==========================================
+
+function initModalsInteraction() {
+    const overlays = document.querySelectorAll('.modal-overlay');
+    
+    overlays.forEach(overlay => {
+        // 1. ЗАКРЫТИЕ ПО КЛИКУ НА ФОН
+        overlay.addEventListener('mousedown', function(e) {
+            // Закрываем только если кликнули ровно по серому фону, а не по самой карточке
+            // И исключаем модалку "Ожидание оплаты" (ее нельзя закрыть просто так)
+            if (e.target === this && this.id !== 'payment-waiting-modal') {
+                if (this.id === 'user-edit-modal') {
+                    closeUserEditModal();
+                } else {
+                    closeModal(this.id);
+                }
+            }
+        });
+
+        // 2. ЗАКРЫТИЕ СВАЙПОМ ВНИЗ
+        const content = overlay.querySelector('.modal-content');
+        if (!content) return;
+
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        
+        // Элемент-ручка (серая полосочка сверху)
+        const handle = content.querySelector('.modal-handle');
+
+        content.addEventListener('touchstart', (e) => {
+            // Начинаем свайп только если мы в самом верху скролла модалки
+            // ИЛИ если пользователь потянул ровно за "ручку"
+            const isHandleTouched = handle && handle.contains(e.target);
+            
+            if (content.scrollTop <= 0 || isHandleTouched) {
+                startY = e.touches[0].clientY;
+                isDragging = true;
+                // Отключаем плавную CSS анимацию, чтобы шторка прилипла к пальцу
+                content.style.transition = 'none'; 
+            }
+        }, { passive: true });
+
+        content.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+
+            // Если тянем вниз (deltaY > 0)
+            if (deltaY > 0) {
+                content.style.transform = `translateY(${deltaY}px)`;
+            }
+        }, { passive: true });
+
+        content.addEventListener('touchend', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // Возвращаем плавную анимацию для завершения
+            content.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1)'; 
+
+            const deltaY = currentY - startY;
+
+            // Если протащили вниз больше чем на 100 пикселей — закрываем
+            if (deltaY > 100) {
+                if (overlay.id === 'user-edit-modal') {
+                    closeUserEditModal();
+                } else if (overlay.id !== 'payment-waiting-modal') {
+                    closeModal(overlay.id);
+                }
+                
+                // Сбрасываем стили после закрытия, чтобы при следующем открытии она была на месте
+                setTimeout(() => {
+                    content.style.transform = '';
+                }, 400);
+            } else {
+                // Если протащили недостаточно — возвращаем наверх (пружинит обратно)
+                content.style.transform = '';
+            }
+            
+            // Сброс значений
+            startY = 0;
+            currentY = 0;
+        });
+    });
+}
+
+// Запускаем слушатели после загрузки страницы
+window.addEventListener('load', initModalsInteraction);
+
+// Функция для настройки рассылки через бота
+async function setupBroadcastViaBot() {
+    triggerHaptic();
+    tg.MainButton.showProgress();
+    
+    try {
+        const res = await fetch('/api/admin/start-broadcast-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: userId })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            tg.close(); // Закрываем Mini App, админ переходит в чат
+        } else {
+            tg.showAlert('Ошибка доступа');
+        }
+    } catch(e) {
+        tg.showAlert('Ошибка соединения');
+    }
+    
+    tg.MainButton.hideProgress();
+}
+
+
+// Инициализация админки с выбором первого раздела
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        if (!document.getElementById('page-admin').classList.contains('hidden')) {
+            // Выбираем первый пункт по умолчанию
+            const firstItem = document.querySelector('.admin-dropdown-item');
+            if (firstItem) {
+                selectAdminSection('create', firstItem);
+            }
+        }
+    }, 500);
+});
+// Инициализация формы создания тарифа
+addPeriod(); // Добавляем один период по умолчанию
+
+// Функция связи с менеджером Platega
+function contactPlategaManager() {
+    triggerHaptic();
+    
+    // Формируем текст с переносами строк
+    const messageText = `Здравствуйте!
+
+Хочу подключить кассу Platega для своего Telegram-бота.
+Бот: @${appBotUsername || 'Мой_Бот'}
+
+Проект предназначен для продажи подписок на приватные Telegram-каналы.
+Готов предоставить ссылки на каналы для проверки.
+
+А также необходимые документы (политика конфиденциальности, пользовательское соглашение) и контакты поддержки уже находятся в боте.
+
+Подскажите, пожалуйста, дальнейший процесс подключения.`;
+
+    // Кодируем текст, чтобы он безопасно передался в ссылке
+    const encodedText = encodeURIComponent(messageText);
+    
+    // Создаем ссылку на бота-менеджера (замените plategaio_bot на актуальный юзернейм, если он другой)
+    const deepLink = `https://t.me/plategaio_bot?text=${encodedText}`;
+    
+    // Открываем ссылку (Mini App закроется и откроется чат с предзаполненным текстом)
+    tg.openTelegramLink(deepLink);
+}
+
+
+</script>
+</body>
+</html>
